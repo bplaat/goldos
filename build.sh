@@ -1,5 +1,5 @@
 PATH=$PATH:"C:\Program Files (x86)\Arduino\hardware\tools\avr\bin"
-if avr-gcc -Os -DF_CPU=16000000UL -DBAUD=9600UL -mmcu=atmega328p -Iinclude/ src/*.c -o goldos; then
+if avr-gcc -Os -DDEBUG -DF_CPU=16000000UL -DBAUD=9600UL -mmcu=atmega328p -Iinclude/ src/*.c -o goldos; then
     avr-size goldos
 
     if [[ $1 == "hex" ]]; then

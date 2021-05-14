@@ -10,6 +10,47 @@ uint8_t input_buffer_position = 0;
 uint8_t directory[] = "/";
 const uint8_t prompt[] PROGMEM = " $ ";
 
+uint8_t argc;
+uint8_t* argv[8];
+void parse_arguments(char* arguments) {
+    argc = 0;
+    uint8_t* pointer = arguments;
+    while (*pointer != '\0') {
+        if (*pointer == '"') {
+            pointer++;
+            argv[argc++] = pointer;
+            while (*pointer != '"') {
+                if (*pointer == '\0') return;
+                pointer++;
+            }
+            *pointer = '\0';
+            pointer++;
+        }
+        else if (*pointer == '\'') {
+            pointer++;
+            argv[argc++] = pointer;
+            while (*pointer != '\'') {
+                if (*pointer == '\0') return;
+                pointer++;
+            }
+            *pointer = '\0';
+            pointer++;
+        }
+        else if (*pointer == ' ') {
+            pointer++;
+        }
+        else {
+            argv[argc++] = pointer;
+            while (*pointer != ' ') {
+                if (*pointer == '\0') return;
+                pointer++;
+            }
+            *pointer = '\0';
+            pointer++;
+        }
+    }
+}
+
 void main(void) {
     serial_begin();
     serial_println_progmem(PSTR("\e[2J\e[;HGoldOS for the ATmega328p microcontroller!"));
@@ -52,20 +93,16 @@ void main(void) {
             // When command is given try to run it
             if (input_buffer_trimmed[0] != '\0') {
                 // Parse arguments
-                uint8_t argc = 0;
-                uint8_t* argv[8];
-                argv[argc++] = input_buffer_trimmed;
-                uint8_t* pointer = input_buffer_trimmed;
-                while (*pointer != '\0') {
-                    if (*pointer == ' ') {
-                        *pointer = '\0';
-                        pointer++;
-                        while (*pointer == ' ') pointer++;
-                        argv[argc++] = pointer;
-                    } else {
-                        pointer++;
+                parse_arguments(input_buffer_trimmed);
+
+                #ifdef DEBUG
+                    serial_println_progmem(PSTR("Arguments:"));
+                    for (uint8_t i = 0; i < argc; i++) {
+                        serial_print_progmem(PSTR("- "));
+                        serial_println(argv[i]);
                     }
-                }
+                    serial_write('\n');
+                #endif
 
                 // Run the right command
                 bool is_command_found = false;
