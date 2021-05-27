@@ -1,20 +1,21 @@
 #include "serial.h"
 #include "commands.h"
-#include "utils.h"
+#include "string.h"
 
 #define INPUT_BUFFER_SIZE 64
-uint8_t input_buffer[INPUT_BUFFER_SIZE];
-bool input_buffer_ready = false;
+char input_buffer[INPUT_BUFFER_SIZE];
 uint8_t input_buffer_position = 0;
+bool input_buffer_ready = false;
 
-uint8_t directory[] = "/";
-const uint8_t prompt[] PROGMEM = " $ ";
+char directory[] = "/";
+const char prompt[] PROGMEM = " $ ";
 
 uint8_t argc;
-uint8_t* argv[8];
-void parse_arguments(char* arguments) {
+char *argv[8];
+void parse_arguments(char *arguments) {
     argc = 0;
-    uint8_t* pointer = arguments;
+
+    char *pointer = arguments;
     while (*pointer != '\0') {
         if (*pointer == '"') {
             pointer++;
@@ -26,6 +27,7 @@ void parse_arguments(char* arguments) {
             *pointer = '\0';
             pointer++;
         }
+
         else if (*pointer == '\'') {
             pointer++;
             argv[argc++] = pointer;
@@ -36,9 +38,11 @@ void parse_arguments(char* arguments) {
             *pointer = '\0';
             pointer++;
         }
+
         else if (*pointer == ' ') {
             pointer++;
         }
+
         else {
             argv[argc++] = pointer;
             while (*pointer != ' ') {
@@ -51,25 +55,38 @@ void parse_arguments(char* arguments) {
     }
 }
 
-void main(void) {
+int main(void) {
     serial_begin();
-    serial_println_progmem(PSTR("\e[2J\e[;HGoldOS for the ATmega328p microcontroller!"));
+    serial_println_progmem(PSTR("\x1b[2J\x1b[;H\x1b[32mGoldOS for the ATmega328p microcontroller!\x1b[0m"));
     serial_print(directory);
     serial_print_progmem(prompt);
 
     for (;;) {
+        #ifndef ARDUINO
+            serial_read_input();
+        #endif
+
         if (serial_available() > 0) {
-            uint8_t character;
+            char character;
             while ((character = serial_read()) != '\0') {
-                // Delete / Backspace character
-                if (character == 0x7f && input_buffer_position > 0) {
+                // Backspace / Delete character
+                if ((character == 8 || character == 127) && input_buffer_position > 0) {
                     input_buffer[input_buffer_position--] = '\0';
-                    serial_write(0x7f); // Print delete character
+                    #ifdef ARDUINO
+                        serial_write(127); // Print delete character
+                    #else
+                        serial_write(8); // Print backspace character
+                        serial_write(' '); // Print space character
+                        serial_write(8); // Print backspace character
+                    #endif
                 }
 
                 // Enter character CRLF
-                if (character == '\r') {
-                    serial_read(); // Skip next \n character
+                if (character == '\r' || character == '\n') {
+                    if (character == '\r') {
+                        serial_read(); // Skip next \n character
+                    }
+
                     input_buffer[input_buffer_position] = '\0';
                     serial_write('\n'); // Print enter character
                     input_buffer_ready = true;
@@ -88,7 +105,7 @@ void main(void) {
 
         if (input_buffer_ready) {
             // Trim input buffer
-            uint8_t* input_buffer_trimmed = string_trim(input_buffer);
+            char *input_buffer_trimmed = string_trim(input_buffer);
 
             // When command is given try to run it
             if (input_buffer_trimmed[0] != '\0') {
@@ -131,4 +148,6 @@ void main(void) {
             input_buffer_ready = false;
         }
     }
+
+    return 0;
 }

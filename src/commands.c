@@ -1,15 +1,24 @@
 #include "commands.h"
 #include "serial.h"
-#include "utils.h"
+#include "string.h"
 
-void sum_command(uint8_t argc, uint8_t** argv) {
+Command commands[] = {
+    { "sum", &sum_command },
+    { "average", &average_command },
+    { "hello", &hello_command },
+    { "help", &help_command }
+};
+
+const uint8_t COMMANDS_SIZE = sizeof(commands) / sizeof(Command);
+
+void sum_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
         int16_t sum = 0;
         for (uint8_t i = 1; i < argc; i++) {
             sum += string_to_int(argv[i]);
         }
 
-        uint8_t number_buffer[7];
+        char number_buffer[7];
         int_to_string(number_buffer, sum, 10);
         serial_println(number_buffer);
     } else {
@@ -17,14 +26,14 @@ void sum_command(uint8_t argc, uint8_t** argv) {
     }
 }
 
-void average_command(uint8_t argc, uint8_t** argv) {
+void average_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
         int16_t sum = 0;
         for (uint8_t i = 1; i < argc; i++) {
             sum += string_to_int(argv[i]);
         }
 
-        uint8_t number_buffer[7];
+        char number_buffer[7];
         int_to_string(number_buffer, sum / (argc - 1), 10);
         serial_println(number_buffer);
     } else {
@@ -32,7 +41,7 @@ void average_command(uint8_t argc, uint8_t** argv) {
     }
 }
 
-void hello_command(uint8_t argc, uint8_t** argv) {
+void hello_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
         serial_print_progmem(PSTR("Hello "));
         for (uint8_t i = 1; i < argc; i++) {
@@ -47,7 +56,9 @@ void hello_command(uint8_t argc, uint8_t** argv) {
     }
 }
 
-void help_command(uint8_t argc, uint8_t** argv) {
+void help_command(uint8_t argc, char **argv) {
+    (void)argc;
+    (void)argv;
     serial_println_progmem(PSTR("Commands:"));
     for (uint8_t i = 0; i < COMMANDS_SIZE; i++) {
         Command command = commands[i];
@@ -55,12 +66,3 @@ void help_command(uint8_t argc, uint8_t** argv) {
         serial_println(command.name);
     }
 }
-
-Command commands[] = {
-    { "sum", &sum_command },
-    { "average", &average_command },
-    { "hello", &hello_command },
-    { "help", &help_command }
-};
-
-const uint8_t COMMANDS_SIZE = sizeof(commands) / sizeof(Command);

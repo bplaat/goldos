@@ -3,22 +3,23 @@
 
 #include <stdint.h>
 
-void sum_command(uint8_t argc, uint8_t** argv);
-
-void average_command(uint8_t argc, uint8_t** argv);
-
-void hello_command(uint8_t argc, uint8_t** argv);
-
-void help_command(uint8_t argc, uint8_t** argv);
-
-void format_command(uint8_t argc, uint8_t** argv);
-
 typedef struct Command {
-    uint8_t* name;
-    void (*command_function)(uint8_t argc, uint8_t** argv);
+    char *name;
+    void (*command_function)(uint8_t argc, char **argv);
 } Command;
 
 extern Command commands[];
+
 extern const uint8_t COMMANDS_SIZE;
+
+void sum_command(uint8_t argc, char **argv);
+
+void average_command(uint8_t argc, char **argv);
+
+void hello_command(uint8_t argc, char **argv);
+
+void help_command(uint8_t argc, char **argv);
+
+void format_command(uint8_t argc, char **argv);
 
 #endif
