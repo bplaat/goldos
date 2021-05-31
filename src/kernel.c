@@ -1,25 +1,29 @@
+#include <string.h>
+#include <stdbool.h>
 #include "serial.h"
+#include "eeprom.h"
 #include "commands.h"
-#include "string.h"
 
-#define INPUT_BUFFER_SIZE 64
+#define INPUT_BUFFER_SIZE 48
+
 char input_buffer[INPUT_BUFFER_SIZE];
-uint8_t input_buffer_position = 0;
-bool input_buffer_ready = false;
 
-char directory[] = "/";
-const char prompt[] PROGMEM = " $ ";
+uint8_t input_buffer_size;
 
-uint8_t argc;
-char *argv[8];
-void parse_arguments(char *arguments) {
-    argc = 0;
+#define ARGUMENTS_MAX 8
 
-    char *pointer = arguments;
+const PROGMEM char prompt[] = "> ";
+
+void arguments_parse(char *buffer, char **arguments, uint8_t *size, uint8_t max_size) {
+    *size = 0;
+
+    char *pointer = buffer;
     while (*pointer != '\0') {
+        if (*size == max_size) return;
+
         if (*pointer == '"') {
             pointer++;
-            argv[argc++] = pointer;
+            arguments[(*size)++] = pointer;
             while (*pointer != '"') {
                 if (*pointer == '\0') return;
                 pointer++;
@@ -30,7 +34,7 @@ void parse_arguments(char *arguments) {
 
         else if (*pointer == '\'') {
             pointer++;
-            argv[argc++] = pointer;
+            arguments[(*size)++] = pointer;
             while (*pointer != '\'') {
                 if (*pointer == '\0') return;
                 pointer++;
@@ -44,7 +48,7 @@ void parse_arguments(char *arguments) {
         }
 
         else {
-            argv[argc++] = pointer;
+            arguments[(*size)++] = pointer;
             while (*pointer != ' ') {
                 if (*pointer == '\0') return;
                 pointer++;
@@ -57,95 +61,44 @@ void parse_arguments(char *arguments) {
 
 int main(void) {
     serial_begin();
-    serial_println_progmem(PSTR("\x1b[2J\x1b[;H\x1b[32mGoldOS for the ATmega328p microcontroller!\x1b[0m"));
-    serial_print(directory);
-    serial_print_progmem(prompt);
+
+    #ifndef ARDUINO
+        eeprom_begin();
+    #endif
+
+    serial_println_P(PSTR("\x1b[2J\x1b[;H\x1b[32mGoldOS v0.1\x1b[0m"));
 
     for (;;) {
-        #ifndef ARDUINO
-            serial_read_input();
-        #endif
+        serial_print_P(prompt);
+        serial_read_line(input_buffer, &input_buffer_size, INPUT_BUFFER_SIZE);
 
-        if (serial_available() > 0) {
-            char character;
-            while ((character = serial_read()) != '\0') {
-                // Backspace / Delete character
-                if ((character == 8 || character == 127) && input_buffer_position > 0) {
-                    input_buffer[input_buffer_position--] = '\0';
-                    #ifdef ARDUINO
-                        serial_write(127); // Print delete character
-                    #else
-                        serial_write(8); // Print backspace character
-                        serial_write(' '); // Print space character
-                        serial_write(8); // Print backspace character
-                    #endif
+        if (input_buffer[0] != '\0') {
+            char *arguments[ARGUMENTS_MAX];
+            uint8_t arguments_size;
+            arguments_parse(input_buffer, arguments, &arguments_size, ARGUMENTS_MAX);
+
+            #ifdef DEBUG
+                serial_println_P(PSTR("Arguments:"));
+                for (uint8_t i = 0; i < arguments_size; i++) {
+                    serial_print_P(PSTR("- "));
+                    serial_println(arguments[i]);
                 }
+                serial_write('\n');
+            #endif
 
-                // Enter character CRLF
-                if (character == '\r' || character == '\n') {
-                    if (character == '\r') {
-                        serial_read(); // Skip next \n character
-                    }
-
-                    input_buffer[input_buffer_position] = '\0';
-                    serial_write('\n'); // Print enter character
-                    input_buffer_ready = true;
-                }
-
-                // Normal ASCII characters
-                if (character >= ' ' && character <= '~') {
-                    input_buffer[input_buffer_position++] = character;
-                    input_buffer[input_buffer_position] = '\0';
-                    serial_write(character);
-                }
-
-                // Ignore the rest
-            }
-        }
-
-        if (input_buffer_ready) {
-            // Trim input buffer
-            char *input_buffer_trimmed = string_trim(input_buffer);
-
-            // When command is given try to run it
-            if (input_buffer_trimmed[0] != '\0') {
-                // Parse arguments
-                parse_arguments(input_buffer_trimmed);
-
-                #ifdef DEBUG
-                    serial_println_progmem(PSTR("Arguments:"));
-                    for (uint8_t i = 0; i < argc; i++) {
-                        serial_print_progmem(PSTR("- "));
-                        serial_println(argv[i]);
-                    }
-                    serial_write('\n');
-                #endif
-
-                // Run the right command
-                bool is_command_found = false;
-                for (uint8_t i = 0; i < COMMANDS_SIZE; i++) {
-                    Command command = commands[i];
-                    if (string_equals(command.name, argv[0])) {
-                        is_command_found = true;
-                        command.command_function(argc, argv);
-                        break;
-                    }
-                }
-
-                // Print text when command is not found
-                if (!is_command_found) {
-                    serial_print_progmem(PSTR("Can't find command: "));
-                    serial_println(argv[0]);
+            bool is_command_found = false;
+            for (uint8_t i = 0; i < COMMANDS_SIZE; i++) {
+                Command command = commands[i];
+                if (!strcmp_P(arguments[0], command.name)) {
+                    is_command_found = true;
+                    command.command_function(arguments_size, arguments);
+                    break;
                 }
             }
-
-            // Print new prompt
-            serial_print(directory);
-            serial_print_progmem(prompt);
-
-            // Clear input buffer
-            input_buffer_position = 0;
-            input_buffer_ready = false;
+            if (!is_command_found) {
+                serial_print_P(PSTR("Can't find command: "));
+                serial_println(arguments[0]);
+            }
         }
     }
 

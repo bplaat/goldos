@@ -1,12 +1,27 @@
 #include "commands.h"
+#ifdef ARDUINO
+    #include <avr/wdt.h>
+#endif
+#include <stdlib.h>
 #include "serial.h"
-#include "string.h"
+#include "eeprom.h"
+
+const PROGMEM char sum_command_name[] = "sum";
+const PROGMEM char average_command_name[] = "average";
+const PROGMEM char hello_command_name[] = "hello";
+const PROGMEM char help_command_name[] = "help";
+const PROGMEM char exit_command_name[] = "exit";
+const PROGMEM char read_command_name[] = "read";
+const PROGMEM char write_command_name[] = "write";
 
 Command commands[] = {
-    { "sum", &sum_command },
-    { "average", &average_command },
-    { "hello", &hello_command },
-    { "help", &help_command }
+    { sum_command_name, &sum_command },
+    { average_command_name, &average_command },
+    { hello_command_name, &hello_command },
+    { help_command_name, &help_command },
+    { exit_command_name, &exit_command },
+    { read_command_name, &read_command },
+    { write_command_name, &write_command }
 };
 
 const uint8_t COMMANDS_SIZE = sizeof(commands) / sizeof(Command);
@@ -15,14 +30,14 @@ void sum_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
         int16_t sum = 0;
         for (uint8_t i = 1; i < argc; i++) {
-            sum += string_to_int(argv[i]);
+            sum += atoi(argv[i]);
         }
 
         char number_buffer[7];
-        int_to_string(number_buffer, sum, 10);
+        itoa(sum, number_buffer, 10);
         serial_println(number_buffer);
     } else {
-        serial_println_progmem(PSTR("Help: sum [number]..."));
+        serial_println_P(PSTR("Help: sum [number]..."));
     }
 }
 
@@ -30,39 +45,80 @@ void average_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
         int16_t sum = 0;
         for (uint8_t i = 1; i < argc; i++) {
-            sum += string_to_int(argv[i]);
+            sum += atoi(argv[i]);
         }
 
         char number_buffer[7];
-        int_to_string(number_buffer, sum / (argc - 1), 10);
+        itoa(sum / (argc - 1), number_buffer, 10);
         serial_println(number_buffer);
     } else {
-        serial_println_progmem(PSTR("Help: average [number]..."));
+        serial_println_P(PSTR("Help: average [number]..."));
     }
 }
 
 void hello_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
-        serial_print_progmem(PSTR("Hello "));
+        serial_print_P(PSTR("Hello "));
         for (uint8_t i = 1; i < argc; i++) {
             serial_print(argv[i]);
             if (i != argc - 1) {
                 serial_write(' ');
             }
         }
-        serial_println_progmem(PSTR("!"));
+        serial_println_P(PSTR("!"));
     } else {
-        serial_println_progmem(PSTR("Hello World!"));
+        serial_println_P(PSTR("Hello World!"));
     }
 }
 
 void help_command(uint8_t argc, char **argv) {
     (void)argc;
     (void)argv;
-    serial_println_progmem(PSTR("Commands:"));
+
+    serial_println_P(PSTR("Commands:"));
     for (uint8_t i = 0; i < COMMANDS_SIZE; i++) {
         Command command = commands[i];
-        serial_print_progmem(PSTR("- "));
-        serial_println(command.name);
+        serial_print_P(PSTR("- "));
+        serial_println_P(command.name);
+    }
+}
+
+void exit_command(uint8_t argc, char **argv) {
+    (void)argc;
+    (void)argv;
+
+    #ifdef ARDUINO
+        wdt_enable(WDTO_15MS);
+        for (;;);
+    #else
+        exit(0);
+    #endif
+}
+
+void read_command(uint8_t argc, char **argv) {
+    (void)argc;
+    (void)argv;
+
+    uint16_t position = 0;
+    char character;
+    while ((character = eeprom_read(position++)) != '\0') {
+        serial_write(character);
+    }
+}
+
+void write_command(uint8_t argc, char **argv) {
+    if (argc >= 2) {
+        uint16_t position = 0;
+        for (uint8_t i = 1; i < argc; i++) {
+            char *argument = argv[i];
+            while (*argument != '\0') {
+                eeprom_write(position++, *argument++);
+            }
+            eeprom_write(position++, ' ');
+        }
+        eeprom_write(position++, '\n');
+        eeprom_write(position++, '\0');
+    } else {
+        serial_println_P(PSTR("Help: write [text]..."));
     }
 }

@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 typedef struct Command {
-    char *name;
+    const char *name;
     void (*command_function)(uint8_t argc, char **argv);
 } Command;
 
@@ -20,6 +20,10 @@ void hello_command(uint8_t argc, char **argv);
 
 void help_command(uint8_t argc, char **argv);
 
-void format_command(uint8_t argc, char **argv);
+void exit_command(uint8_t argc, char **argv);
+
+void read_command(uint8_t argc, char **argv);
+
+void write_command(uint8_t argc, char **argv);
 
 #endif

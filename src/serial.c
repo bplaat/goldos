@@ -6,10 +6,6 @@
 #else
     #ifdef __WIN32__
         #include <windows.h>
-    #else
-        #include <unistd.h>
-        #include <fcntl.h>
-        #include <stdio.h>
     #endif
 #endif
 
@@ -19,19 +15,10 @@ uint8_t serial_input_read_position = 0;
 
 uint8_t serial_input_write_position = 0;
 
-#ifdef ARDUINO
-    ISR(USART_RX_vect) {
-        char character = UDR0;
-        if (serial_input_write_position == SERIAL_INPUT_BUFFER_SIZE) {
-            serial_input_write_position = 0;
-        }
-        serial_input_buffer[serial_input_write_position++] = character;
-    }
-#endif
-
 #ifdef __WIN32__
-    HANDLE stdinHandle;
-    HANDLE stdoutHandle;
+    HANDLE stdin_handle;
+
+    HANDLE stdout_handle;
 #endif
 
 void serial_begin(void) {
@@ -50,39 +37,42 @@ void serial_begin(void) {
 
         sei();
     #else
-        // Enable ANSI escape codes on Windows
         #ifdef __WIN32__
-            stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
-            DWORD consoleMode;
-            GetConsoleMode(stdinHandle, &consoleMode);
-            consoleMode &= ~ENABLE_LINE_INPUT;
-            SetConsoleMode(stdinHandle, consoleMode);
+            stdin_handle = GetStdHandle(STD_INPUT_HANDLE);
+            DWORD console_mode;
+            GetConsoleMode(stdin_handle, &console_mode);
+            console_mode &= ~ENABLE_LINE_INPUT;
+            SetConsoleMode(stdin_handle, console_mode);
 
-            stdoutHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-            GetConsoleMode(stdoutHandle, &consoleMode);
-            consoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-            SetConsoleMode(stdoutHandle, consoleMode);
-        #else
-            fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL) | O_NONBLOCK);
+            stdout_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+            GetConsoleMode(stdout_handle, &console_mode);
+            console_mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+            SetConsoleMode(stdout_handle, console_mode);
         #endif
     #endif
 }
 
-#ifndef ARDUINO
-    void serial_read_input(void) {
-        char character;
-        #if __WIN32__
-            DWORD bytesRead;
-            ReadConsole(stdinHandle, &character, 1, &bytesRead, NULL);
-            if (bytesRead > 0) {
-        #else
-            if (read(STDIN_FILENO, &character, 1) > 0) {
-        #endif
-            if (serial_input_write_position == SERIAL_INPUT_BUFFER_SIZE) {
-                serial_input_write_position = 0;
-            }
-            serial_input_buffer[serial_input_write_position++] = character;
+#ifdef ARDUINO
+    ISR(USART_RX_vect) {
+        char character = UDR0;
+        if (serial_input_write_position == SERIAL_INPUT_BUFFER_SIZE) {
+            serial_input_write_position = 0;
         }
+        serial_input_buffer[serial_input_write_position++] = character;
+    }
+#else
+    void serial_read_input(void) {
+        #if __WIN32__
+            char character;
+            DWORD bytes_read;
+            ReadConsole(stdin_handle, &character, 1, &bytes_read, NULL);
+            if (bytes_read > 0) {
+                if (serial_input_write_position == SERIAL_INPUT_BUFFER_SIZE) {
+                    serial_input_write_position = 0;
+                }
+                serial_input_buffer[serial_input_write_position++] = character;
+            }
+        #endif
     }
 #endif
 
@@ -100,19 +90,51 @@ char serial_read(void) {
     return '\0';
 }
 
+void serial_read_line(char *buffer, uint8_t *size, uint8_t max_size) {
+    *size = 0;
+    for (;;) {
+        #ifndef ARDUINO
+            serial_read_input();
+        #endif
+
+        char character;
+        while ((character = serial_read()) != '\0') {
+            if ((character >= ' ' && character <= '~') && *size < max_size - 1) {
+                buffer[(*size)++] = character;
+                serial_write(character);
+            }
+
+            if ((character == 8 || character == 127) && *size > 0) {
+                buffer[(*size)--] = '\0';
+                serial_write(8);
+                serial_write(' ');
+                serial_write(8);
+            }
+
+            if (character == '\r' || character == '\n') {
+                if (character == '\r') {
+                    serial_read();
+                }
+
+                buffer[*size] = '\0';
+                serial_write('\n');
+                return;
+            }
+        }
+    }
+}
+
 void serial_write(char character) {
     if (character == '\n') {
         serial_write('\r');
     }
 
     #ifdef ARDUINO
-        UDR0 = character;
         loop_until_bit_is_set(UCSR0A, UDRE0);
+        UDR0 = character;
     #else
         #ifdef __WIN32__
-            WriteConsole(stdoutHandle, &character, 1, NULL, NULL);
-        #else
-            putchar(character);
+            WriteConsole(stdout_handle, &character, 1, NULL, NULL);
         #endif
     #endif
 }
@@ -125,7 +147,7 @@ void serial_print(char *string) {
 }
 
 #ifdef ARDUINO
-    void serial_print_progmem(const char *string) {
+    void serial_print_P(const char *string) {
         char character;
         while ((character = pgm_read_byte(string)) != '\0') {
             serial_write(character);
@@ -140,8 +162,8 @@ void serial_println(char *string) {
 }
 
 #ifdef ARDUINO
-    void serial_println_progmem(const char *string) {
-        serial_print_progmem(string);
+    void serial_println_P(const char *string) {
+        serial_print_P(string);
         serial_write('\n');
     }
 #endif
