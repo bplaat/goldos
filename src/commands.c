@@ -13,18 +13,20 @@ const PROGMEM char help_command_name[] = "help";
 const PROGMEM char exit_command_name[] = "exit";
 const PROGMEM char read_command_name[] = "read";
 const PROGMEM char write_command_name[] = "write";
+const PROGMEM char clear_command_name[] = "clear";
+const PROGMEM char pause_command_name[] = "pause";
 
-Command commands[] = {
+const Command commands[] PROGMEM = {
     { sum_command_name, &sum_command },
     { average_command_name, &average_command },
     { hello_command_name, &hello_command },
     { help_command_name, &help_command },
     { exit_command_name, &exit_command },
     { read_command_name, &read_command },
-    { write_command_name, &write_command }
+    { write_command_name, &write_command },
+    { clear_command_name, &clear_command },
+    { pause_command_name, &pause_command }
 };
-
-const uint8_t COMMANDS_SIZE = sizeof(commands) / sizeof(Command);
 
 void sum_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
@@ -77,9 +79,8 @@ void help_command(uint8_t argc, char **argv) {
 
     serial_println_P(PSTR("Commands:"));
     for (uint8_t i = 0; i < COMMANDS_SIZE; i++) {
-        Command command = commands[i];
         serial_print_P(PSTR("- "));
-        serial_println_P(command.name);
+        serial_println_P((const char *)pgm_read_word(&commands[i].name));
     }
 }
 
@@ -121,4 +122,19 @@ void write_command(uint8_t argc, char **argv) {
     } else {
         serial_println_P(PSTR("Help: write [text]..."));
     }
+}
+
+void clear_command(uint8_t argc, char **argv) {
+    (void)argc;
+    (void)argv;
+    serial_print_P(PSTR("\x1b[2J\x1b[;H"));
+}
+
+void pause_command(uint8_t argc, char **argv) {
+    (void)argc;
+    (void)argv;
+    serial_print_P(PSTR("Press any key to continue..."));
+    while (serial_available() == 0);
+    serial_read();
+    serial_write('\n');
 }

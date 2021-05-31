@@ -1,5 +1,5 @@
 # bplaat/goldos
-A simple Operating System for ATmega328p microcontrollers
+A simple Operating System for AVR microcontrollers and runnable as a normal program
 
 ## How to build it?
 Run this command to build and run GoldOS on your own computer:

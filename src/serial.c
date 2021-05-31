@@ -77,6 +77,10 @@ void serial_begin(void) {
 #endif
 
 uint8_t serial_available(void) {
+    #ifndef ARDUINO
+        serial_read_input();
+    #endif
+
     return serial_input_write_position - serial_input_read_position;
 }
 

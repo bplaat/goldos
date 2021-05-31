@@ -7,6 +7,7 @@
 #else
     #define PSTR(string) (string)
     #define PROGMEM
+    #define pgm_read_word(ptr) (*(ptr))
     #define strcmp_P(s1, s2) (strcmp((s1), (s2)))
 #endif
 

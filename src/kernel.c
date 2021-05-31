@@ -88,10 +88,9 @@ int main(void) {
 
             bool is_command_found = false;
             for (uint8_t i = 0; i < COMMANDS_SIZE; i++) {
-                Command command = commands[i];
-                if (!strcmp_P(arguments[0], command.name)) {
+                if (!strcmp_P(arguments[0], (const char *)pgm_read_word(&commands[i].name))) {
                     is_command_found = true;
-                    command.command_function(arguments_size, arguments);
+                    ((void (*)(uint8_t argc, char **argv))pgm_read_word(&commands[i].command_function))(arguments_size, arguments);
                     break;
                 }
             }

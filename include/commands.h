@@ -8,9 +8,9 @@ typedef struct Command {
     void (*command_function)(uint8_t argc, char **argv);
 } Command;
 
-extern Command commands[];
+#define COMMANDS_SIZE 9
 
-extern const uint8_t COMMANDS_SIZE;
+extern const Command commands[];
 
 void sum_command(uint8_t argc, char **argv);
 
@@ -25,5 +25,9 @@ void exit_command(uint8_t argc, char **argv);
 void read_command(uint8_t argc, char **argv);
 
 void write_command(uint8_t argc, char **argv);
+
+void clear_command(uint8_t argc, char **argv);
+
+void pause_command(uint8_t argc, char **argv);
 
 #endif
