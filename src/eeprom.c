@@ -20,9 +20,15 @@
             fwrite(&eeprom_data, 1, EEPROM_SIZE, eeprom_file);
         }
     }
+
+    void eeprom_end(void) {
+        fseek(eeprom_file, 0, SEEK_SET);
+        fwrite(&eeprom_data, 1, EEPROM_SIZE, eeprom_file);
+        fclose(eeprom_file);
+    }
 #endif
 
-uint8_t eeprom_read(uint16_t address) {
+uint8_t eeprom_read_byte(uint16_t address) {
     #ifdef ARDUINO
         loop_until_bit_is_clear(EECR, EEPE);
         EEAR = address;
@@ -33,8 +39,8 @@ uint8_t eeprom_read(uint16_t address) {
     #endif
 }
 
-void eeprom_write(uint16_t address, uint8_t data) {
-    if (eeprom_read(address) != data) {
+void eeprom_write_byte(uint16_t address, uint8_t data) {
+    if (eeprom_read_byte(address) != data) {
         #ifdef ARDUINO
             loop_until_bit_is_clear(EECR, EEPE);
             EEAR = address;
@@ -45,8 +51,15 @@ void eeprom_write(uint16_t address, uint8_t data) {
             sei();
         #else
             eeprom_data[address] = data;
-            fseek(eeprom_file, 0, SEEK_SET);
-            fwrite(&eeprom_data, 1, EEPROM_SIZE, eeprom_file);
         #endif
     }
+}
+
+uint16_t eeprom_read_word(uint16_t address) {
+    return eeprom_read_byte(address) | (eeprom_read_byte(address + 1) << 8);
+}
+
+void eeprom_write_word(uint16_t address, uint16_t data) {
+    eeprom_write_byte(address, data & 0xff);
+    eeprom_write_byte(address + 1, data >> 8);
 }
