@@ -3,6 +3,7 @@
 #include "serial.h"
 #include "eeprom.h"
 #include "commands.h"
+#include "config.h"
 
 #define INPUT_BUFFER_SIZE 48
 
@@ -66,7 +67,7 @@ int main(void) {
         eeprom_begin();
     #endif
 
-    serial_println_P(PSTR("\x1b[2J\x1b[;H\x1b[32mGoldOS v0.1\x1b[0m"));
+    serial_println_P(PSTR("\x1b[2J\x1b[;H\x1b[32mGoldOS v" STR(VERSION_MAJOR) "." STR(VERSION_MINOR) "\x1b[0m"));
 
     for (;;) {
         serial_print_P(prompt);

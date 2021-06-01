@@ -7,12 +7,14 @@
 #include "serial.h"
 #include "eeprom.h"
 #include "disk.h"
+#include "config.h"
 
 const PROGMEM char sum_command_name[] = "sum";
 const PROGMEM char average_command_name[] = "average";
 const PROGMEM char hello_command_name[] = "hello";
 const PROGMEM char help_command_name[] = "help";
 const PROGMEM char exit_command_name[] = "exit";
+const PROGMEM char version_command_name[] = "version";
 const PROGMEM char clear_command_name[] = "clear";
 const PROGMEM char pause_command_name[] = "pause";
 
@@ -20,7 +22,7 @@ const PROGMEM char read_command_name[] = "read";
 const PROGMEM char write_command_name[] = "write";
 const PROGMEM char format_command_name[] = "format";
 const PROGMEM char dump_command_name[] = "dump";
-const PROGMEM char list_command_name[] = "list";
+const PROGMEM char inspect_command_name[] = "inspect";
 
 const Command commands[] PROGMEM = {
     { sum_command_name, &sum_command },
@@ -28,6 +30,7 @@ const Command commands[] PROGMEM = {
     { hello_command_name, &hello_command },
     { help_command_name, &help_command },
     { exit_command_name, &exit_command },
+    { version_command_name, &version_command },
     { clear_command_name, &clear_command },
     { pause_command_name, &pause_command },
 
@@ -35,7 +38,7 @@ const Command commands[] PROGMEM = {
     { write_command_name, &write_command },
     { format_command_name, &format_command },
     { dump_command_name, &dump_command },
-    { list_command_name, &list_command }
+    { inspect_command_name, &inspect_command }
 };
 
 void sum_command(uint8_t argc, char **argv) {
@@ -107,6 +110,12 @@ void exit_command(uint8_t argc, char **argv) {
     #endif
 }
 
+void version_command(uint8_t argc, char **argv) {
+    (void)argc;
+    (void)argv;
+    serial_println_P(PSTR("GoldOS v" STR(VERSION_MAJOR) "." STR(VERSION_MINOR)));
+}
+
 void clear_command(uint8_t argc, char **argv) {
     (void)argc;
     (void)argv;
@@ -154,20 +163,7 @@ void format_command(uint8_t argc, char **argv) {
     (void)argc;
     (void)argv;
 
-    eeprom_write_byte(0, 'G');
-    eeprom_write_byte(1, 'F');
-    eeprom_write_byte(2, 'S');
-    eeprom_write_byte(3, 0x01);
-
-    uint16_t freeSpace = EEPROM_SIZE - DISK_BLOCK_ALIGN - 2 - 2;
-    eeprom_write_word(DISK_BLOCK_ALIGN, freeSpace);
-    eeprom_write_word(EEPROM_SIZE - 2, freeSpace);
-
-    uint16_t root_directory_size = 1;
-    uint16_t root_directory_position = disk_alloc(root_directory_size);
-    eeprom_write_byte(root_directory_position, 0);
-    eeprom_write_word(4, root_directory_position);
-    eeprom_write_word(6, root_directory_size);
+    disk_format();
 }
 
 void dump_command(uint8_t argc, char **argv) {
@@ -243,7 +239,7 @@ void dump_command(uint8_t argc, char **argv) {
     }
 }
 
-void list_command(uint8_t argc, char **argv) {
+void inspect_command(uint8_t argc, char **argv) {
     (void)argc;
     (void)argv;
 
