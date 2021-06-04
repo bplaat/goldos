@@ -7,38 +7,48 @@
 #include "serial.h"
 #include "eeprom.h"
 #include "disk.h"
+#include "file.h"
+#include "directory.h"
 #include "config.h"
 
 const PROGMEM char sum_command_name[] = "sum";
 const PROGMEM char average_command_name[] = "average";
 const PROGMEM char hello_command_name[] = "hello";
 const PROGMEM char help_command_name[] = "help";
+const PROGMEM char q_command_name[] = "q";
 const PROGMEM char exit_command_name[] = "exit";
+const PROGMEM char ver_command_name[] = "ver";
 const PROGMEM char version_command_name[] = "version";
+const PROGMEM char cls_command_name[] = "clear";
 const PROGMEM char clear_command_name[] = "clear";
 const PROGMEM char pause_command_name[] = "pause";
 
-const PROGMEM char read_command_name[] = "read";
-const PROGMEM char write_command_name[] = "write";
 const PROGMEM char format_command_name[] = "format";
 const PROGMEM char dump_command_name[] = "dump";
+const PROGMEM char df_command_name[] = "df";
 const PROGMEM char inspect_command_name[] = "inspect";
+const PROGMEM char cat_command_name[] = "cat";
+const PROGMEM char read_command_name[] = "read";
+const PROGMEM char write_command_name[] = "write";
+const PROGMEM char ls_command_name[] = "ls";
+const PROGMEM char list_command_name[] = "list";
 
 const Command commands[] PROGMEM = {
     { sum_command_name, &sum_command },
     { average_command_name, &average_command },
     { hello_command_name, &hello_command },
     { help_command_name, &help_command },
-    { exit_command_name, &exit_command },
-    { version_command_name, &version_command },
-    { clear_command_name, &clear_command },
+    { q_command_name, &exit_command }, { exit_command_name, &exit_command },
+    { ver_command_name, &version_command }, { version_command_name, &version_command },
+    { cls_command_name, &clear_command }, { clear_command_name, &clear_command },
     { pause_command_name, &pause_command },
 
-    { read_command_name, &read_command },
-    { write_command_name, &write_command },
     { format_command_name, &format_command },
     { dump_command_name, &dump_command },
-    { inspect_command_name, &inspect_command }
+    { df_command_name, &inspect_command }, { inspect_command_name, &inspect_command },
+    { cat_command_name, &read_command }, { read_command_name, &read_command },
+    { write_command_name, &write_command },
+    { ls_command_name, &list_command }, { list_command_name, &list_command }
 };
 
 void sum_command(uint8_t argc, char **argv) {
@@ -129,34 +139,6 @@ void pause_command(uint8_t argc, char **argv) {
     while (serial_available() == 0);
     serial_read();
     serial_write('\n');
-}
-
-void read_command(uint8_t argc, char **argv) {
-    (void)argc;
-    (void)argv;
-
-    uint16_t position = 0;
-    char character;
-    while ((character = eeprom_read_byte(position++)) != '\0') {
-        serial_write(character);
-    }
-}
-
-void write_command(uint8_t argc, char **argv) {
-    if (argc >= 2) {
-        uint16_t position = 0;
-        for (uint8_t i = 1; i < argc; i++) {
-            char *argument = argv[i];
-            while (*argument != '\0') {
-                eeprom_write_byte(position++, *argument++);
-            }
-            eeprom_write_byte(position++, ' ');
-        }
-        eeprom_write_byte(position++, '\n');
-        eeprom_write_byte(position++, '\0');
-    } else {
-        serial_println_P(PSTR("Help: write [text]..."));
-    }
 }
 
 void format_command(uint8_t argc, char **argv) {
@@ -286,4 +268,60 @@ void inspect_command(uint8_t argc, char **argv) {
     itoa(maxFreeBlockSize, number_buffer, 10);
     serial_print(number_buffer);
     serial_println_P(PSTR(" bytes"));
+}
+
+void read_command(uint8_t argc, char **argv) {
+    if (argc >= 2) {
+        for (uint8_t i = 1; i < argc; i++) {
+            int8_t file = file_open(argv[i], FILE_OPEN_MODE_READ);
+            if (file != -1) {
+                char buffer[16];
+                while (file_read(file, (uint8_t *)buffer, sizeof(buffer)) != 0) {
+                    serial_print(buffer);
+                }
+                serial_write('\n');
+                file_close(file);
+            }
+        }
+    }
+}
+
+void write_command(uint8_t argc, char **argv) {
+    if (argc >= 3) {
+        int8_t file = file_open(argv[1], FILE_OPEN_MODE_WRITE);
+        if (file != -1) {
+            for (uint8_t i = 2; i < argc; i++) {
+                file_write(file, (uint8_t *)argv[i], -1);
+                file_write(file, (uint8_t *)" ", 1);
+            }
+            file_close(file);
+        }
+    } else {
+        serial_println_P(PSTR("Help: write [path] [text]..."));
+    }
+}
+
+void list_command(uint8_t argc, char **argv) {
+    (void)argc;
+    (void)argv;
+
+    int8_t directory = directory_open("/", DIRECTORY_OPEN_MODE_READ);
+    if (directory != -1) {
+        uint8_t type;
+        char name[16];
+        uint16_t size;
+        while (directory_read(directory, &type, name, &size)) {
+            serial_print_P(PSTR("- "));
+            serial_print(name);
+            if (type == DIRECTORY_READ_TYPE_DIRECTORY) {
+                serial_write('/');
+            }
+            serial_print_P(PSTR(": "));
+            char number_buffer[7];
+            itoa(size, number_buffer, 10);
+            serial_print(number_buffer);
+            serial_println_P(PSTR(" bytes"));
+        }
+        directory_close(directory);
+    }
 }

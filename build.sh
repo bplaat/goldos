@@ -1,4 +1,4 @@
-rm -f goldos*
+rm -f -r .vscode goldos*
 
 if [[ $1 == "arduino" ]]; then
     PATH=$PATH:"C:\Program Files (x86)\Arduino\hardware\tools\avr\bin"
