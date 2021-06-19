@@ -8,6 +8,8 @@
         #include <windows.h>
     #endif
 #endif
+#include <stdlib.h>
+#include <string.h>
 
 char serial_input_buffer[SERIAL_INPUT_BUFFER_SIZE];
 
@@ -171,3 +173,33 @@ void serial_println(char *string) {
         serial_write('\n');
     }
 #endif
+
+void serial_print_number(int16_t number, char padding) {
+    char number_buffer[7];
+    itoa(number, number_buffer, 10);
+    if (padding != '\0') {
+        uint8_t diff = (sizeof(number_buffer) - 1) - strlen(number_buffer);
+        for (uint8_t i = 0; i < diff; i++) serial_write(padding);
+    }
+    serial_print(number_buffer);
+}
+
+void serial_print_byte(uint8_t byte, char padding) {
+    char number_buffer[3];
+    itoa(byte, number_buffer, 16);
+    if (padding != '\0') {
+        uint8_t diff = (sizeof(number_buffer) - 1) - strlen(number_buffer);
+        for (uint8_t i = 0; i < diff; i++) serial_write(padding);
+    }
+    serial_print(number_buffer);
+}
+
+void serial_print_word(uint16_t word, char padding) {
+    char number_buffer[5];
+    itoa(word, number_buffer, 16);
+    if (padding != '\0') {
+        uint8_t diff = (sizeof(number_buffer) - 1) - strlen(number_buffer);
+        for (uint8_t i = 0; i < diff; i++) serial_write(padding);
+    }
+    serial_print(number_buffer);
+}

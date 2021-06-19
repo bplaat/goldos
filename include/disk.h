@@ -2,6 +2,7 @@
 #define DISK_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define DISK_BLOCK_ALIGN 8
 
@@ -18,5 +19,7 @@ void disk_free(uint16_t address);
 uint16_t disk_realloc(uint16_t address, uint16_t size);
 
 void disk_format(void);
+
+bool disk_inspect(void);
 
 #endif

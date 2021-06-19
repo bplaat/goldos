@@ -3,7 +3,7 @@
 #include "serial.h"
 #include "eeprom.h"
 #include "commands.h"
-#include "config.h"
+#include "utils.h"
 
 #define INPUT_BUFFER_SIZE 48
 
