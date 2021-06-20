@@ -3,12 +3,7 @@
 
 #include <stdint.h>
 
-typedef union FloatConvert {
-    float number;
-    uint32_t data;
-} FloatConvert;
-
-#define STACK_SIZE 255
+#define STACK_SIZE 64
 
 extern uint8_t stack[];
 
@@ -24,15 +19,17 @@ float stack_pop_float(void);
 
 void stack_pop_string(char *string);
 
-void stack_push_byte(uint8_t data);
+void stack_push_byte(uint8_t byte);
 
-void stack_push_word(uint16_t data);
+void stack_push_word(uint16_t word);
 
-void stack_push_dword(uint32_t data);
+void stack_push_dword(uint32_t dword);
 
 void stack_push_float(float number);
 
 void stack_push_string(char *string);
+
+void stack_clear(void);
 
 void stack_inspect(void);
 

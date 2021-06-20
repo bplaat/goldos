@@ -3,6 +3,7 @@
 #include "serial.h"
 #include "eeprom.h"
 #include "commands.h"
+#include "heap.h"
 #include "utils.h"
 
 #define INPUT_BUFFER_SIZE 48
@@ -67,6 +68,8 @@ int main(void) {
         eeprom_begin();
     #endif
 
+    heap_begin();
+
     serial_println_P(PSTR("\x1b[2J\x1b[;H\x1b[32mGoldOS v" STR(VERSION_MAJOR) "." STR(VERSION_MINOR) "\x1b[0m"));
 
     for (;;) {
@@ -78,14 +81,14 @@ int main(void) {
             uint8_t arguments_size;
             arguments_parse(input_buffer, arguments, &arguments_size, ARGUMENTS_MAX);
 
-            #ifdef DEBUG
-                serial_println_P(PSTR("Arguments:"));
-                for (uint8_t i = 0; i < arguments_size; i++) {
-                    serial_print_P(PSTR("- "));
-                    serial_println(arguments[i]);
-                }
-                serial_write('\n');
-            #endif
+            // #ifdef DEBUG
+            //     serial_println_P(PSTR("Arguments:"));
+            //     for (uint8_t i = 0; i < arguments_size; i++) {
+            //         serial_print_P(PSTR("- "));
+            //         serial_println(arguments[i]);
+            //     }
+            //     serial_write('\n');
+            // #endif
 
             bool is_command_found = false;
             for (uint8_t i = 0; i < COMMANDS_SIZE; i++) {

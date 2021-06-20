@@ -203,3 +203,36 @@ void serial_print_word(uint16_t word, char padding) {
     }
     serial_print(number_buffer);
 }
+
+void serial_print_memory(uint8_t *data, uint16_t size) {
+    serial_print_P(PSTR("     "));
+
+    for (uint8_t x = 0; x < 16; x++) {
+        serial_print_byte(x, ' ');
+        serial_write(x == 15 ? '\t' : ' ');
+    }
+
+    for (uint8_t x = 0; x < 16; x++) {
+        serial_print_byte(x, '\0');
+        serial_write(x == 15 ? '\n' : ' ');
+    }
+
+    for (uint16_t y = 0; y < (size >> 4); y++) {
+        serial_print_word(y << 4, '0');
+        serial_write(' ');
+
+        for (size_t x = 0; x < 16; x++) {
+            serial_print_byte(data[(y << 4) + x], '0');
+            serial_write(x == 15 ? '\t' : ' ');
+        }
+
+        for (size_t x = 0; x < 16; x++) {
+            char character = data[(y << 4) + x];
+            if (character  < ' ' || character > '~') {
+                character = '.';
+            }
+            serial_write(character);
+            serial_write(x == 15 ? '\n' : ' ');
+        }
+    }
+}

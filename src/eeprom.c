@@ -36,18 +36,18 @@ uint8_t eeprom_read_byte(uint16_t address) {
     #endif
 }
 
-void eeprom_write_byte(uint16_t address, uint8_t data) {
-    if (eeprom_read_byte(address) != data) {
+void eeprom_write_byte(uint16_t address, uint8_t byte) {
+    if (eeprom_read_byte(address) != byte) {
         #ifdef ARDUINO
             loop_until_bit_is_clear(EECR, EEPE);
             EEAR = address;
-            EEDR = data;
+            EEDR = byte;
             cli();
             EECR |= _BV(EEMPE);
             EECR |= _BV(EEPE);
             sei();
         #else
-            eeprom_data[address] = data;
+            eeprom_data[address] = byte;
         #endif
     }
 }
@@ -56,9 +56,9 @@ uint16_t eeprom_read_word(uint16_t address) {
     return eeprom_read_byte(address) | (eeprom_read_byte(address + 1) << 8);
 }
 
-void eeprom_write_word(uint16_t address, uint16_t data) {
-    eeprom_write_byte(address, data & 0xff);
-    eeprom_write_byte(address + 1, data >> 8);
+void eeprom_write_word(uint16_t address, uint16_t word) {
+    eeprom_write_byte(address, word & 0xff);
+    eeprom_write_byte(address + 1, word >> 8);
 }
 
 void eeprom_dump(void) {
@@ -84,7 +84,7 @@ void eeprom_dump(void) {
         }
 
         for (size_t x = 0; x < 16; x++) {
-            char character = eeprom_read_byte(y * 16 + x);
+            char character = eeprom_read_byte((y << 4) + x);
             if (character  < ' ' || character > '~') {
                 character = '.';
             }

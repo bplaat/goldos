@@ -56,4 +56,6 @@ void serial_print_byte(uint8_t byte, char padding);
 
 void serial_print_word(uint16_t word, char padding);
 
+void serial_print_memory(uint8_t *data, uint16_t size);
+
 #endif

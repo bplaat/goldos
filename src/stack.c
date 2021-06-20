@@ -1,5 +1,6 @@
 #include "stack.h"
 #include <string.h>
+#include "utils.h"
 #include "serial.h"
 
 uint8_t stack[STACK_SIZE];
@@ -11,21 +12,20 @@ uint8_t stack_pop_byte(void) {
 }
 
 uint16_t stack_pop_word(void) {
-    uint16_t data = stack[stack_pointer + 1] | (stack[stack_pointer + 2] << 8);
+    uint16_t word = stack[stack_pointer + 1] | (stack[stack_pointer + 2] << 8);
     stack_pointer += 2;
-    return data;
+    return word;
 }
 
 uint32_t stack_pop_dword(void) {
-    uint32_t data = stack[stack_pointer + 1] | (stack[stack_pointer + 2] << 8) | ((uint32_t)stack[stack_pointer + 3] << 16) | ((uint32_t)stack[stack_pointer + 4] << 24);
+    uint32_t dword = stack[stack_pointer + 1] | (stack[stack_pointer + 2] << 8) | ((uint32_t)stack[stack_pointer + 3] << 16) | ((uint32_t)stack[stack_pointer + 4] << 24);
     stack_pointer += 4;
-    return data;
+    return dword;
 }
 
 float stack_pop_float(void) {
     FloatConvert convert;
-    convert.data = stack[stack_pointer + 1] | (stack[stack_pointer + 2] << 8) | ((uint32_t)stack[stack_pointer + 3] << 16) | ((uint32_t)stack[stack_pointer + 4] << 24);
-    stack_pointer += 4;
+    convert.dword = stack_pop_dword();
     return convert.number;
 }
 
@@ -36,29 +36,26 @@ void stack_pop_string(char *string) {
     }
 }
 
-void stack_push_byte(uint8_t data) {
-    stack[stack_pointer--] = data;
+void stack_push_byte(uint8_t byte) {
+    stack[stack_pointer--] = byte;
 }
 
-void stack_push_word(uint16_t data) {
-    stack[stack_pointer--] = data >> 8;
-    stack[stack_pointer--] = data & 0xff;
+void stack_push_word(uint16_t word) {
+    stack[stack_pointer--] = word >> 8;
+    stack[stack_pointer--] = word & 0xff;
 }
 
-void stack_push_dword(uint32_t data) {
-    stack[stack_pointer--] = data >> 24;
-    stack[stack_pointer--] = (data >> 16) & 0xff;
-    stack[stack_pointer--] = (data >> 8) & 0xff;
-    stack[stack_pointer--] = data & 0xff;
+void stack_push_dword(uint32_t dword) {
+    stack[stack_pointer--] = dword >> 24;
+    stack[stack_pointer--] = (dword >> 16) & 0xff;
+    stack[stack_pointer--] = (dword >> 8) & 0xff;
+    stack[stack_pointer--] = dword & 0xff;
 }
 
 void stack_push_float(float number) {
     FloatConvert convert;
     convert.number = number;
-    stack[stack_pointer--] = convert.data >> 24;
-    stack[stack_pointer--] = (convert.data >> 16) & 0xff;
-    stack[stack_pointer--] = (convert.data >> 8) & 0xff;
-    stack[stack_pointer--] = convert.data & 0xff;
+    stack_push_dword(convert.dword);
 }
 
 void stack_push_string(char *string) {
@@ -67,6 +64,10 @@ void stack_push_string(char *string) {
         stack[stack_pointer--] = string[i];
     }
     stack[stack_pointer--] = size;
+}
+
+void stack_clear(void) {
+    stack_pointer = STACK_SIZE - 1;
 }
 
 void stack_inspect(void) {

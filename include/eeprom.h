@@ -15,11 +15,11 @@
 
 uint8_t eeprom_read_byte(uint16_t address);
 
-void eeprom_write_byte(uint16_t address, uint8_t data);
+void eeprom_write_byte(uint16_t address, uint8_t byte);
 
 uint16_t eeprom_read_word(uint16_t address);
 
-void eeprom_write_word(uint16_t address, uint16_t data);
+void eeprom_write_word(uint16_t address, uint16_t word);
 
 void eeprom_dump(void);
 
