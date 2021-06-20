@@ -12,59 +12,48 @@
 #include "stack.h"
 #include "heap.h"
 
-const PROGMEM char rand_command_name[] = "rand";
 const PROGMEM char random_command_name[] = "random";
+const PROGMEM char rand_command_name[] = "rand";
 const PROGMEM char sum_command_name[] = "sum";
 const PROGMEM char average_command_name[] = "average";
 const PROGMEM char hello_command_name[] = "hello";
 const PROGMEM char help_command_name[] = "help";
-const PROGMEM char q_command_name[] = "q";
 const PROGMEM char exit_command_name[] = "exit";
+const PROGMEM char q_command_name[] = "q";
 const PROGMEM char ver_command_name[] = "ver";
 const PROGMEM char version_command_name[] = "version";
-const PROGMEM char cls_command_name[] = "cls";
 const PROGMEM char clear_command_name[] = "clear";
+const PROGMEM char cls_command_name[] = "cls";
 const PROGMEM char pause_command_name[] = "pause";
 
 const PROGMEM char eeprom_command_name[] = "eeprom";
 
-const PROGMEM char format_command_name[] = "format";
-const PROGMEM char df_command_name[] = "df";
-const PROGMEM char inspect_command_name[] = "inspect";
-const PROGMEM char alloc_command_name[] = "alloc";
-const PROGMEM char free_command_name[] = "free";
-const PROGMEM char realloc_command_name[] = "realloc";
-const PROGMEM char test_command_name[] = "test";
+const PROGMEM char disk_command_name[] = "disk";
 
-// const PROGMEM char cat_command_name[] = "cat";
 // const PROGMEM char read_command_name[] = "read";
+// const PROGMEM char cat_command_name[] = "cat";
 // const PROGMEM char write_command_name[] = "write";
-// const PROGMEM char ls_command_name[] = "ls";
 // const PROGMEM char list_command_name[] = "list";
+// const PROGMEM char ls_command_name[] = "ls";
 
 const PROGMEM char stack_command_name[] = "stack";
 
 const PROGMEM char heap_command_name[] = "heap";
 
 const Command commands[] PROGMEM = {
-    { rand_command_name, &random_command }, { random_command_name, &random_command },
+    { random_command_name, &random_command }, { rand_command_name, &random_command },
     { sum_command_name, &sum_command },
     { average_command_name, &average_command },
     { hello_command_name, &hello_command },
     { help_command_name, &help_command },
-    { q_command_name, &exit_command }, { exit_command_name, &exit_command },
-    { ver_command_name, &version_command }, { version_command_name, &version_command },
-    { cls_command_name, &clear_command }, { clear_command_name, &clear_command },
+    { exit_command_name, &exit_command }, { q_command_name, &exit_command },
+    { version_command_name, &version_command }, { ver_command_name, &version_command },
+    { clear_command_name, &clear_command }, { cls_command_name, &clear_command },
     { pause_command_name, &pause_command },
 
     { eeprom_command_name, &eeprom_command },
 
-    { format_command_name, &format_command },
-    { df_command_name, &inspect_command }, { inspect_command_name, &inspect_command },
-    { alloc_command_name, &alloc_command },
-    { free_command_name, &free_command },
-    { realloc_command_name, &realloc_command },
-    { test_command_name, &test_command },
+    { disk_command_name, &disk_command },
 
     // { cat_command_name, &read_command }, { read_command_name, &read_command },
     // { write_command_name, &write_command },
@@ -210,118 +199,43 @@ void eeprom_command(uint8_t argc, char **argv) {
     }
 }
 
-// Disk commands
-void format_command(uint8_t argc, char **argv) {
-    (void)argc;
-    (void)argv;
-    disk_format();
-}
-
-void inspect_command(uint8_t argc, char **argv) {
-    (void)argc;
-    (void)argv;
-    disk_inspect();
-}
-
-void alloc_command(uint8_t argc, char **argv) {
-    if (argc >= 3) {
-        uint16_t count = atoi(argv[1]);
-        uint16_t address = disk_alloc(count);
-        if (address != 0) {
-            for (uint16_t i = 0; i < count; i++) {
-                eeprom_write_byte(address + i, argv[2][0]);
-            }
-
-            serial_print_P(PSTR("Address: "));
-            serial_print_number(address, '\0');
-            serial_write('\n');
-        } else {
-            serial_println_P(PSTR("Not enough free disk space!"));
-        }
-
-        // disk_inspect();
-    }
-}
-
-void free_command(uint8_t argc, char **argv) {
+// Disk command
+void disk_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
-        uint16_t address = atoi(argv[1]);
-        disk_free(address);
-
-        // disk_inspect();
-    }
-}
-
-void realloc_command(uint8_t argc, char **argv) {
-    if (argc >= 4) {
-        uint16_t count = atoi(argv[2]);
-        uint16_t address = disk_realloc(atoi(argv[1]), count);
-        if (address != 0) {
-            for (uint16_t i = 0; i < count; i++) {
-                eeprom_write_byte(address + i, argv[3][0]);
-            }
-
-            serial_print_P(PSTR("Address: "));
-            serial_print_number(address, '\0');
-            serial_write('\n');
-        } else {
-            serial_println_P(PSTR("Not enough free disk space!"));
-        }
-
-        // disk_inspect();
-    }
-}
-
-void test_command(uint8_t argc, char **argv) {
-    uint16_t count = 32;
-    if (argc >= 2) {
-        count = atoi(argv[1]);
-    }
-
-    #define BLOCKS_SIZE 32
-    uint16_t blocks[BLOCKS_SIZE];
-    uint8_t blocks_size = 0;
-
-    uint16_t block_address = DISK_BLOCK_ALIGN;
-    while (EEPROM_SIZE - block_address >= 2 + 2) {
-        uint16_t block_header = eeprom_read_word(block_address);
-        uint16_t block_size = block_header & 0x7fff;
-        if ((block_header & 0x8000) != 0) {
-            blocks[blocks_size++] = block_address + 2;
-        }
-        block_address += 2 + block_size + 2;
-    }
-
-    for (uint16_t i = 0; i < count && disk_inspect(); i++) {
-        if (blocks_size != BLOCKS_SIZE) {
-            uint16_t size = rand_int(0, EEPROM_SIZE);
-            uint16_t address = disk_alloc(size);
+        if (!strcmp_P(argv[1], PSTR("alloc")) && argc >= 4) {
+            uint16_t count = atoi(argv[2]);
+            uint16_t address = disk_alloc(count);
             if (address != 0) {
-                blocks[blocks_size++] = address;
-            }
-        }
-
-        if (blocks_size > 0) {
-            uint8_t index = rand_int(0, blocks_size);
-            if (rand_int(0, 1) == 1) {
-                disk_free(blocks[index]);
-
-                for (uint8_t i = index + 1; i < blocks_size; i++) {
-                    blocks[i - 1] = blocks[i];
+                for (uint16_t i = 0; i < count; i++) {
+                    eeprom_write_byte(address + i, argv[3][0]);
                 }
-                blocks_size--;
+
+                serial_print_P(PSTR("Address: "));
+                serial_print_word(address, '0');
+                serial_write('\n');
             } else {
-                uint16_t size = rand_int(0, EEPROM_SIZE);
-                blocks[index] = disk_realloc(blocks[index], size);
-
-                if (blocks[index] == 0) {
-                    for (uint8_t i = index + 1; i < blocks_size; i++) {
-                        blocks[i - 1] = blocks[i];
-                    }
-                    blocks_size--;
-                }
+                serial_println_P(PSTR("Not enough free disk space!"));
             }
         }
+
+        if (!strcmp_P(argv[1], PSTR("free")) && argc >= 3) {
+            uint16_t address = strtol(argv[2], NULL, 16);
+            disk_free(address);
+        }
+
+        if (!strcmp_P(argv[1], PSTR("format"))) {
+            disk_format();
+        }
+
+        if (!strcmp_P(argv[1], PSTR("dump"))) {
+            eeprom_dump();
+        }
+
+        if (!strcmp_P(argv[1], PSTR("inspect")) || !strcmp_P(argv[1], PSTR("list"))) {
+            disk_inspect();
+        }
+    } else {
+        serial_println_P(PSTR("Help: disk alloc [count] [char], disk free [address], [count] [char], disk format, disk dump, disk inspect / list"));
     }
 }
 

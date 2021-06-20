@@ -7,12 +7,18 @@
 uint8_t heap[HEAP_SIZE];
 
 void heap_begin(void) {
-    heap[0] = 0xbe;
-    heap[1] = 0xef;
+    #ifdef DEBUG
+        for (uint16_t i = 0; i < HEAP_SIZE; i++) {
+            heap[i] = 0;
+        }
+    #endif
 
-    uint8_t free_space = HEAP_SIZE - HEAP_BLOCK_ALIGN - 2;
-    heap[HEAP_BLOCK_ALIGN] = free_space;
-    heap[HEAP_SIZE - 1] = free_space;
+    heap[0] = 'B';
+    heap[1] = 'P';
+
+    uint8_t free_block_size = HEAP_SIZE - HEAP_BLOCK_ALIGN - 2;
+    heap[HEAP_BLOCK_ALIGN] = free_block_size;
+    heap[HEAP_SIZE - 1] = free_block_size;
 }
 
 uint8_t heap_alloc(uint8_t size) {
@@ -25,9 +31,10 @@ uint8_t heap_alloc(uint8_t size) {
             heap[block_address] = 0x80 | size;
             heap[block_address + 1 + size] = 0x80 | size;
             if (block_size != size) {
-                uint8_t remaing_space = block_size - size - 1 - 1;
-                heap[block_address + 1 + size + 1] = remaing_space;
-                heap[block_address + 1 + size + 1 + 1 + remaing_space] = remaing_space;
+                uint8_t new_next_block_address = block_address + 1 + size + 1;
+                uint8_t new_next_block_size = block_size - 1 - size- 1;
+                heap[new_next_block_address] = new_next_block_size;
+                heap[new_next_block_address + 1 + new_next_block_size] = new_next_block_size;
             }
             return block_address + 1;
         }
@@ -56,7 +63,7 @@ void heap_free(uint8_t address) {
         uint8_t next_block_header = heap[block_address + 1 + block_size + 1];
         if ((next_block_header & 0x80) == 0) {
             uint8_t next_block_size = next_block_header & 0x7f;
-            block_size += 1 + 1 + next_block_size;
+            block_size += 1 + next_block_size + 1;
         }
     }
 

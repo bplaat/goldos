@@ -8,7 +8,7 @@ typedef struct Command {
     void (*command_function)(uint8_t argc, char **argv);
 } Command;
 
-#define COMMANDS_SIZE 23
+#define COMMANDS_SIZE 17
 
 extern const Command commands[];
 
@@ -34,18 +34,8 @@ void pause_command(uint8_t argc, char **argv);
 // EEPROM command
 void eeprom_command(uint8_t argc, char **argv);
 
-// Disk commands
-void format_command(uint8_t argc, char **argv);
-
-void inspect_command(uint8_t argc, char **argv);
-
-void alloc_command(uint8_t argc, char **argv);
-
-void free_command(uint8_t argc, char **argv);
-
-void realloc_command(uint8_t argc, char **argv);
-
-void test_command(uint8_t argc, char **argv);
+// Disk command
+void disk_command(uint8_t argc, char **argv);
 
 // File commands
 // void read_command(uint8_t argc, char **argv);

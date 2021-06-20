@@ -34,6 +34,7 @@ void stack_pop_string(char *string) {
     for (uint8_t i = 0; i < size; i++) {
         string[i] = stack[++stack_pointer];
     }
+    string[size] = '\0';
 }
 
 void stack_push_byte(uint8_t byte) {
@@ -67,14 +68,21 @@ void stack_push_string(char *string) {
 }
 
 void stack_clear(void) {
+    #ifdef DEBUG
+        for (uint16_t i = 0; i < STACK_SIZE; i++) {
+            stack[i] = 0;
+        }
+    #endif
+
     stack_pointer = STACK_SIZE - 1;
 }
 
 void stack_inspect(void) {
-    serial_println_P(PSTR("Stack:"));
-    serial_print_P(PSTR("stack_pointer = "));
+    serial_print_P(PSTR("Stack ("));
     serial_print_byte(stack_pointer, '0');
-    serial_write('\n');
+    serial_print_P(PSTR(" / "));
+    serial_print_byte(STACK_SIZE - 1, '0');
+    serial_println_P(PSTR("):"));
 
     if (stack_pointer != STACK_SIZE - 1) {
         for (uint8_t i = STACK_SIZE - 1; i > stack_pointer; i--) {
@@ -84,6 +92,6 @@ void stack_inspect(void) {
             serial_write('\n');
         }
     } else {
-        serial_println_P(PSTR("The stack is empty"));
+        serial_println_P(PSTR("- The stack is empty"));
     }
 }
