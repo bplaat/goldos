@@ -2,7 +2,6 @@
 A simple Operating System for AVR microcontrollers and runnable as a normal program
 
 ## TODO
-- Disk blocks
 - File read write
 - AVR simulator
 - Process list

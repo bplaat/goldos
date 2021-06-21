@@ -1,5 +1,4 @@
 #include "disk.h"
-// #include <stdio.h>
 #include <stdbool.h>
 #include "eeprom.h"
 #include "utils.h"
@@ -83,7 +82,7 @@ void disk_inspect(void) {
     uint16_t free_block_count = 0;
     uint16_t free_blocks_size = 0;
     uint16_t max_free_block_size = 0;
-    while (EEPROM_SIZE - block_address >= 2 + 2) {
+    while (block_address <= EEPROM_SIZE - 2 - 2) {
         uint16_t block_header = eeprom_read_word(block_address);
         uint16_t block_size = block_header & 0x7fff;
 

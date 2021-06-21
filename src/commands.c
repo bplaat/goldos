@@ -4,11 +4,11 @@
 #endif
 #include <stdlib.h>
 #include <string.h>
+#include "utils.h"
 #include "serial.h"
 #include "eeprom.h"
 #include "disk.h"
-// #include "file.h"
-#include "utils.h"
+#include "file.h"
 #include "stack.h"
 #include "heap.h"
 
@@ -30,11 +30,19 @@ const PROGMEM char eeprom_command_name[] = "eeprom";
 
 const PROGMEM char disk_command_name[] = "disk";
 
-// const PROGMEM char read_command_name[] = "read";
-// const PROGMEM char cat_command_name[] = "cat";
-// const PROGMEM char write_command_name[] = "write";
-// const PROGMEM char list_command_name[] = "list";
-// const PROGMEM char ls_command_name[] = "ls";
+const PROGMEM char read_command_name[] = "read";
+const PROGMEM char cat_command_name[] = "cat";
+const PROGMEM char write_command_name[] = "write";
+const PROGMEM char append_command_name[] = "append";
+const PROGMEM char add_command_name[] = "add";
+const PROGMEM char list_command_name[] = "list";
+const PROGMEM char ls_command_name[] = "ls";
+const PROGMEM char dir_command_name[] = "dir";
+const PROGMEM char rename_command_name[] = "rename";
+const PROGMEM char mv_command_name[] = "mv";
+const PROGMEM char delete_command_name[] = "delete";
+const PROGMEM char del_command_name[] = "del";
+const PROGMEM char rm_command_name[] = "rm";
 
 const PROGMEM char stack_command_name[] = "stack";
 
@@ -55,9 +63,12 @@ const Command commands[] PROGMEM = {
 
     { disk_command_name, &disk_command },
 
-    // { cat_command_name, &read_command }, { read_command_name, &read_command },
-    // { write_command_name, &write_command },
-    // { ls_command_name, &list_command }, { list_command_name, &list_command }
+    { read_command_name, &read_command }, { cat_command_name, &read_command },
+    { write_command_name, &write_command },
+    { append_command_name, &append_command }, { add_command_name, &append_command },
+    { list_command_name, &list_command }, { ls_command_name, &list_command }, {dir_command_name, &list_command },
+    { rename_command_name, &rename_command }, { mv_command_name, &rename_command },
+    { delete_command_name, &delete_command }, { rm_command_name, &delete_command }, { del_command_name, &delete_command },
 
     { stack_command_name, &stack_command },
 
@@ -204,9 +215,11 @@ void disk_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
         if (!strcmp_P(argv[1], PSTR("alloc")) && argc >= 4) {
             uint16_t count = atoi(argv[2]);
+            if (count == 0) count = 1;
             uint16_t address = disk_alloc(count);
             if (address != 0) {
-                for (uint16_t i = 0; i < count; i++) {
+                eeprom_write_byte(address, '\0');
+                for (uint16_t i = 1; i < count; i++) {
                     eeprom_write_byte(address + i, argv[3][0]);
                 }
 
@@ -240,48 +253,113 @@ void disk_command(uint8_t argc, char **argv) {
 }
 
 // File commands
-// void read_command(uint8_t argc, char **argv) {
-//     if (argc >= 2) {
-//         for (uint8_t i = 1; i < argc; i++) {
-//             int8_t file = file_open(argv[i], FILE_OPEN_MODE_READ);
-//             if (file != -1) {
-//                 char buffer[16];
-//                 while (file_read(file, (uint8_t *)buffer, sizeof(buffer)) != 0) {
-//                     serial_print(buffer);
-//                 }
-//                 serial_write('\n');
-//                 file_close(file);
-//             }
+void read_command(uint8_t argc, char **argv) {
+    if (argc >= 2) {
+        for (uint8_t i = 1; i < argc; i++) {
+            int8_t file = file_open(argv[i], FILE_OPEN_MODE_READ);
+            if (file != -1) {
+                char buffer[16];
+                uint16_t bytes_read;
+                while ((bytes_read = file_read(file, (uint8_t *)buffer, sizeof(buffer) - 1)) != 0) {
+                    buffer[bytes_read] = '\0';
+                    serial_print(buffer);
+                }
+                file_close(file);
+            } else {
+                serial_println_P(PSTR("File open error!"));
+            }
+        }
+    } else {
+        serial_println_P(PSTR("Help: read [name]..."));
+    }
+}
 
-//             eeprom_dump();
-//             disk_inspect();
-//         }
-//     }
-// }
+void write_command(uint8_t argc, char **argv) {
+    if (argc >= 3) {
+        int8_t file = file_open(argv[1], FILE_OPEN_MODE_WRITE);
+        if (file != -1) {
+            for (uint8_t i = 2; i < argc; i++) {
+                if (file_write(file, (uint8_t *)argv[i], -1) == -1) {
+                    serial_println_P(PSTR("File write error!"));
+                }
 
-// void write_command(uint8_t argc, char **argv) {
-//     if (argc >= 3) {
-//         int8_t file = file_open(argv[1], FILE_OPEN_MODE_WRITE);
-//         if (file != -1) {
-//             for (uint8_t i = 2; i < argc; i++) {
-//                 file_write(file, (uint8_t *)argv[i], -1);
-//                 file_write(file, (uint8_t *)" ", 1);
-//             }
-//             file_close(file);
-//         }
+                if (i != argc - 1) {
+                    if (file_write(file, (uint8_t *)" ", 1) == -1) {
+                        serial_println_P(PSTR("File write error!"));
+                    }
+                }
+            }
+            file_close(file);
+        } else {
+            serial_println_P(PSTR("File open error!"));
+        }
+    } else {
+        serial_println_P(PSTR("Help: write [name] [text]..."));
+    }
+}
 
-//         eeprom_dump();
-//         disk_inspect();
-//     } else {
-//         serial_println_P(PSTR("Help: write [path] [text]..."));
-//     }
-// }
+void append_command(uint8_t argc, char **argv) {
+    if (argc >= 3) {
+        int8_t file = file_open(argv[1], FILE_OPEN_MODE_APPEND);
+        if (file != -1) {
+            for (uint8_t i = 2; i < argc; i++) {
+                if (file_write(file, (uint8_t *)argv[i], -1) == -1) {
+                    serial_println_P(PSTR("File write error!"));
+                }
 
-// void list_command(uint8_t argc, char **argv) {
-//     (void)argc;
-//     (void)argv;
-//     disk_inspect();
-// }
+                if (i != argc - 1) {
+                    if (file_write(file, (uint8_t *)" ", 1) == -1) {
+                        serial_println_P(PSTR("File write error!"));
+                    }
+                }
+            }
+            file_close(file);
+        } else {
+            serial_println_P(PSTR("File open error!"));
+        }
+    } else {
+        serial_println_P(PSTR("Help: append [name] [text]..."));
+    }
+}
+
+void list_command(uint8_t argc, char **argv) {
+    (void)argc;
+    (void)argv;
+    serial_println_P(PSTR("Files:"));
+    char file_name[32];
+    uint16_t file_size;
+    while (file_list(file_name, &file_size)) {
+        serial_print_P(PSTR("- "));
+        serial_print(file_name);
+        serial_print_P(PSTR(": "));
+        serial_print_number(file_size, '\0');
+        serial_println_P(PSTR(" bytes"));
+    }
+}
+
+void rename_command(uint8_t argc, char **argv) {
+    if (argc >= 3) {
+        for (uint8_t i = 1; i < argc; i += 2) {
+            if (!file_rename(argv[i], argv[i + 1])) {
+                serial_println_P(PSTR("File rename error!"));
+            }
+        }
+    } else {
+        serial_println_P(PSTR("Help: rename [[old_name] [new_name]]..."));
+    }
+}
+
+void delete_command(uint8_t argc, char **argv) {
+    if (argc >= 2) {
+        for (uint8_t i = 1; i < argc; i++) {
+            if (!file_delete(argv[i])) {
+                serial_println_P(PSTR("File delete error!"));
+            }
+        }
+    } else {
+        serial_println_P(PSTR("Help: delete [name]..."));
+    }
+}
 
 // Stack command
 void stack_command(uint8_t argc, char **argv) {
