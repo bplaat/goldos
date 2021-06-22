@@ -1,4 +1,4 @@
 tools/send.exe
-tools/test*
-goldos*
+examples/*.prg
+/goldos*
 eeprom.bin

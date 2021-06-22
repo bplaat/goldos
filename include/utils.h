@@ -9,6 +9,10 @@
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
 
+#define bit(number, bit) ((number >> bit) & 1)
+#define bit_set(number, bit) number |= (1 << bit);
+#define bit_clear(number, bit) number &= ~(1 << bit);
+
 typedef union FloatConvert {
     float number;
     uint32_t dword;

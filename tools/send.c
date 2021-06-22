@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
 
     if (argc >= 3) {
         size_t real_file_size;
-        uint8_t *file_data = file_read(argv[2], &real_file_size);
+        uint8_t *file_data = file_read(argc >= 4 ? argv[3] : argv[2], &real_file_size);
 
         uint16_t file_size = real_file_size;
         printf("File size: %d bytes\n", file_size);
@@ -53,8 +53,10 @@ int main(int argc, char **argv) {
         timeoutParams.ReadIntervalTimeout = 2; // wait 2 ms for each character (9600 bps = 1.04 ms per character)
         SetCommTimeouts(serial_port, &timeoutParams);
         EscapeCommFunction(serial_port, SETDTR); // reset Arduino
+        fflush(stdout);
         Sleep(1000);
         EscapeCommFunction(serial_port, CLRDTR);
+        fflush(stdout);
         Sleep(1000);
 
         // Start command
@@ -63,6 +65,8 @@ int main(int argc, char **argv) {
         DWORD bytes_written;
         WriteFile(serial_port, buffer, strlen(buffer), &bytes_written, NULL);
         printf("Sending: %s", buffer);
+        fflush(stdout);
+        Sleep(1000);
 
         // Send file
         uint16_t position = 0;
@@ -79,11 +83,15 @@ int main(int argc, char **argv) {
             strcat(buffer, "\n");
             WriteFile(serial_port, buffer, strlen(buffer), &bytes_written, NULL);
             printf("Sending: %s", buffer);
+            fflush(stdout);
+            Sleep(1000);
         }
 
         strcpy(buffer, "\n");
         WriteFile(serial_port, buffer, strlen(buffer), &bytes_written, NULL);
         printf("Sending: %s", buffer);
+        fflush(stdout);
+        Sleep(1000);
 
         CloseHandle(serial_port);
 

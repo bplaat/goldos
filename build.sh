@@ -2,7 +2,7 @@ rm -f -r .vscode goldos*
 
 if [[ $1 == "arduino" ]]; then
     PATH=$PATH:"C:\Program Files (x86)\Arduino\hardware\tools\avr\bin"
-    if avr-gcc -Wall -Wextra -Wpedantic -Werror --std=c99 -Os \
+    if avr-gcc -Wall -Wextra -Werror -Os \
         -DARDUINO -DF_CPU=16000000UL -DBAUD=9600UL -DEEPROM_SIZE=1024 \
         -mmcu=atmega328p -Iinclude/ $(find src -name *.c) -lm -o goldos
     then
@@ -20,7 +20,7 @@ if [[ $1 == "arduino" ]]; then
         fi
     fi
 else
-    if gcc -Wall -Wextra -Wpedantic -Werror --std=c99 -Os -DDEBUG -DEEPROM_SIZE=512 \
+    if gcc -Wall -Wextra -Werror -Os -DDEBUG -DEEPROM_SIZE=4096 \
         -Iinclude/ $(find src -name *.c) -o goldos
     then
         if [[ $1 == "disasm" ]]; then

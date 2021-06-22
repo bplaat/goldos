@@ -14,6 +14,7 @@
 #include "file.h"
 #include "stack.h"
 #include "heap.h"
+#include "processor.h"
 
 const PROGMEM char random_command_name[] = "random";
 const PROGMEM char rand_command_name[] = "rand";
@@ -53,6 +54,9 @@ const PROGMEM char stack_command_name[] = "stack";
 
 const PROGMEM char heap_command_name[] = "heap";
 
+const PROGMEM char run_command_name[] = "run";
+const PROGMEM char start_command_name[] = "start";
+
 const Command commands[] PROGMEM = {
     { random_command_name, &random_command }, { rand_command_name, &random_command },
     { sum_command_name, &sum_command },
@@ -78,7 +82,9 @@ const Command commands[] PROGMEM = {
 
     { stack_command_name, &stack_command },
 
-    { heap_command_name, &heap_command }
+    { heap_command_name, &heap_command },
+
+    { run_command_name, &run_command }, { start_command_name, &run_command }
 };
 
 // Util commands
@@ -347,6 +353,24 @@ void write_command(uint8_t argc, char **argv) {
         int8_t file = file_open(argv[1], FILE_OPEN_MODE_WRITE);
         if (file != -1) {
             if (argc >= 3) {
+                #ifndef ARDUINO
+                    if (!strcmp(argv[2], "$")) {
+                        FILE *in_file = fopen(argc >= 4 ? argv[3] : argv[1], "rb");
+                        if (in_file != NULL) {
+                            fseek(in_file, 0, SEEK_END);
+                            size_t file_size = ftell(in_file);
+                            fseek(in_file, 0, SEEK_SET);
+                            uint8_t *file_buffer = malloc(file_size);
+                            fread(file_buffer, 1, file_size, in_file);
+                            file_write(file, file_buffer, file_size);
+                            free(file_buffer);
+                            fclose(in_file);
+                        } else {
+                            printf("File read error!\n");
+                        }
+                    } else {
+                #endif
+
                 for (uint8_t i = 2; i < argc; i++) {
                     if (file_write(file, (uint8_t *)argv[i], -1) == -1) {
                         serial_println_P(PSTR("File write error!"));
@@ -358,6 +382,10 @@ void write_command(uint8_t argc, char **argv) {
                         }
                     }
                 }
+
+                #ifndef ARDUINO
+                    }
+                #endif
             } else {
                 for (;;) {
                     char input_buffer[WRITE_BUFFER_SIZE * 2 + 1];
@@ -620,5 +648,34 @@ void heap_command(uint8_t argc, char **argv) {
         }
     } else {
         serial_println_P(PSTR("Help: heap set [type] [id] [value], heap get [type] [id], heap clear [id]?, heap dump, heap inspect / list"));
+    }
+}
+
+// Processor commands
+void run_command(uint8_t argc, char **argv) {
+    if (argc >= 2) {
+        int8_t file = file_open(argv[1], FILE_OPEN_MODE_READ);
+        if (file != -1) {
+            Processor processor;
+            processor_init(&processor, files[file].address + 1 + files[file].name_size + 2); // DIRTY
+
+            for (size_t i = 0; processor.running; i++) {
+                processor_clock(&processor);
+                #ifdef DEBUG
+                    if (i >= 1) {
+                        #ifndef ARDUINO
+                            serial_read_input();
+                        #endif
+                        while (serial_read() == '\0');
+                    }
+                #endif
+            }
+
+            file_close(file);
+        } else {
+            serial_println_P(PSTR("File open error!"));
+        }
+    } else {
+        serial_println_P(PSTR("Help: run [name]"));
     }
 }
