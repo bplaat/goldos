@@ -8,6 +8,7 @@
         #include <windows.h>
     #endif
 #endif
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -21,6 +22,15 @@ uint8_t serial_input_write_position = 0;
     HANDLE stdin_handle;
 
     HANDLE stdout_handle;
+#endif
+
+#ifdef ARDUINO
+    int file_serial_write(char character, FILE *file) {
+        (void)file;
+        serial_write(character);
+        return 0;
+    }
+    FILE serial_stdout = FDEV_SETUP_STREAM(file_serial_write, NULL, _FDEV_SETUP_WRITE);
 #endif
 
 void serial_begin(void) {
@@ -38,6 +48,8 @@ void serial_begin(void) {
         UCSR0B = _BV(RXEN0) | _BV(TXEN0) | _BV(RXCIE0);
 
         sei();
+
+        stdout = &serial_stdout;
     #else
         #ifdef __WIN32__
             stdin_handle = GetStdHandle(STD_INPUT_HANDLE);
@@ -215,14 +227,14 @@ void serial_print_memory(uint8_t *data, uint16_t size) {
         serial_write(x == 15 ? '\n' : ' ');
     }
 
-    uint8_t lines = size >> 4;
+    uint16_t lines = size >> 4;
     if ((size & 15) != 0) lines++;
     if (lines == 0) lines = 1;
     for (uint16_t y = 0; y < lines; y++) {
         serial_print_word(y << 4, '0');
         serial_write(' ');
 
-        for (size_t x = 0; x < 16; x++) {
+        for (uint8_t x = 0; x < 16; x++) {
             uint16_t address = (y << 4) | x;
             if (address < size) {
                 serial_print_byte(data[address], '0');
@@ -232,7 +244,7 @@ void serial_print_memory(uint8_t *data, uint16_t size) {
             serial_write(x == 15 ? '\t' : ' ');
         }
 
-        for (size_t x = 0; x < 16; x++) {
+        for (uint8_t x = 0; x < 16; x++) {
             char character;
             uint16_t address = (y << 4) | x;
             if (address < size) {

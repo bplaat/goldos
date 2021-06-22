@@ -56,6 +56,7 @@ const PROGMEM char heap_command_name[] = "heap";
 
 const PROGMEM char run_command_name[] = "run";
 const PROGMEM char start_command_name[] = "start";
+const PROGMEM char debug_command_name[] = "debug";
 
 const Command commands[] PROGMEM = {
     { random_command_name, &random_command }, { rand_command_name, &random_command },
@@ -84,7 +85,8 @@ const Command commands[] PROGMEM = {
 
     { heap_command_name, &heap_command },
 
-    { run_command_name, &run_command }, { start_command_name, &run_command }
+    { run_command_name, &run_command }, { start_command_name, &run_command },
+    { debug_command_name, &debug_command }
 };
 
 // Util commands
@@ -301,7 +303,7 @@ void hex_command(uint8_t argc, char **argv) {
                     serial_write(x == 15 ? '\n' : ' ');
                 }
 
-                uint8_t size = file_size(file);
+                uint16_t size = file_size(file);
                 uint8_t lines = size >> 4;
                 if ((size & 15) != 0) lines++;
                 if (lines == 0) lines = 1;
@@ -312,7 +314,7 @@ void hex_command(uint8_t argc, char **argv) {
                     uint8_t buffer[16];
                     file_read(file, (uint8_t *)buffer, sizeof(buffer));
 
-                    for (size_t x = 0; x < 16; x++) {
+                    for (uint8_t x = 0; x < 16; x++) {
                         if (((y << 4) | x) < size) {
                             serial_print_byte(buffer[x], '0');
                         } else {
@@ -321,7 +323,7 @@ void hex_command(uint8_t argc, char **argv) {
                         serial_write(x == 15 ? '\t' : ' ');
                     }
 
-                    for (size_t x = 0; x < 16; x++) {
+                    for (uint8_t x = 0; x < 16; x++) {
                         char character;
                         if (((y << 4) | x) < size) {
                             character = buffer[x];
@@ -358,7 +360,7 @@ void write_command(uint8_t argc, char **argv) {
                         FILE *in_file = fopen(argc >= 4 ? argv[3] : argv[1], "rb");
                         if (in_file != NULL) {
                             fseek(in_file, 0, SEEK_END);
-                            size_t file_size = ftell(in_file);
+                            uint16_t file_size = ftell(in_file);
                             fseek(in_file, 0, SEEK_SET);
                             uint8_t *file_buffer = malloc(file_size);
                             fread(file_buffer, 1, file_size, in_file);
@@ -657,18 +659,10 @@ void run_command(uint8_t argc, char **argv) {
         int8_t file = file_open(argv[1], FILE_OPEN_MODE_READ);
         if (file != -1) {
             Processor processor;
-            processor_init(&processor, files[file].address + 1 + files[file].name_size + 2); // DIRTY
+            processor_init(&processor, false, files[file].address + 1 + files[file].name_size + 2); // DIRTY
 
-            for (size_t i = 0; processor.running; i++) {
+            for (uint32_t i = 0; processor.running; i++) {
                 processor_clock(&processor);
-                #ifdef DEBUG
-                    if (i >= 1) {
-                        #ifndef ARDUINO
-                            serial_read_input();
-                        #endif
-                        while (serial_read() == '\0');
-                    }
-                #endif
             }
 
             file_close(file);
@@ -677,5 +671,32 @@ void run_command(uint8_t argc, char **argv) {
         }
     } else {
         serial_println_P(PSTR("Help: run [name]"));
+    }
+}
+
+void debug_command(uint8_t argc, char **argv) {
+    if (argc >= 2) {
+        int8_t file = file_open(argv[1], FILE_OPEN_MODE_READ);
+        if (file != -1) {
+            Processor processor;
+            processor_init(&processor, true, files[file].address + 1 + files[file].name_size + 2); // DIRTY
+
+            uint32_t steps = argc >= 3 ? strtol(argv[2], NULL, 10) : 0;
+            for (uint32_t i = 0; processor.running; i++) {
+                processor_clock(&processor);
+                if (i >= steps) {
+                    #ifndef ARDUINO
+                        serial_read_input();
+                    #endif
+                    while (serial_read() == '\0');
+                }
+            }
+
+            file_close(file);
+        } else {
+            serial_println_P(PSTR("File open error!"));
+        }
+    } else {
+        serial_println_P(PSTR("Help: debug [name] [steps]?"));
     }
 }

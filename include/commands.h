@@ -8,7 +8,7 @@ typedef struct Command {
     void (*command_function)(uint8_t argc, char **argv);
 } Command;
 
-#define COMMANDS_SIZE 34
+#define COMMANDS_SIZE 35
 
 extern const Command commands[];
 
@@ -60,5 +60,7 @@ void heap_command(uint8_t argc, char **argv);
 
 // Processor commands
 void run_command(uint8_t argc, char **argv);
+
+void debug_command(uint8_t argc, char **argv);
 
 #endif

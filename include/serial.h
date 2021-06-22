@@ -5,11 +5,15 @@
 #include <stdbool.h>
 #ifdef ARDUINO
     #include <avr/pgmspace.h>
+    #define PRIpstr "S"
 #else
     #define PSTR(string) (string)
     #define PROGMEM
+    #define pgm_read_byte(ptr) (*(ptr))
     #define pgm_read_word(ptr) (*(ptr))
     #define strcmp_P(s1, s2) (strcmp((s1), (s2)))
+    #define printf_P(...) printf(__VA_ARGS__)
+    #define PRIpstr "s"
 #endif
 
 #define SERIAL_INPUT_BUFFER_SIZE 16

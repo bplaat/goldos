@@ -76,12 +76,12 @@ void eeprom_dump(void) {
         serial_print_word(y << 4, '0');
         serial_write(' ');
 
-        for (size_t x = 0; x < 16; x++) {
+        for (uint8_t x = 0; x < 16; x++) {
             serial_print_byte(eeprom_read_byte((y << 4) + x), '0');
             serial_write(x == 15 ? '\t' : ' ');
         }
 
-        for (size_t x = 0; x < 16; x++) {
+        for (uint8_t x = 0; x < 16; x++) {
             char character = eeprom_read_byte((y << 4) + x);
             if (character < ' ' || character > '~') {
                 character = '.';

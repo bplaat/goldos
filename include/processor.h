@@ -6,6 +6,7 @@
 
 typedef struct Processor {
     bool running;
+    bool debug;
     uint16_t pc;
     uint8_t r[32];
     uint16_t sp;
@@ -27,7 +28,7 @@ typedef struct Processor {
     uint32_t clock_ticks;
 } Processor;
 
-void processor_init(Processor *p, uint16_t pgm_address);
+void processor_init(Processor *p, bool debug, uint16_t pgm_address);
 
 uint8_t processor_read(Processor *p, uint16_t addr);
 
