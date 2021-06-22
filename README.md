@@ -2,7 +2,6 @@
 A simple Operating System for AVR microcontrollers and runnable as a normal program
 
 ## TODO
-- Upload tool
 - AVR simulator
 - Process list
 

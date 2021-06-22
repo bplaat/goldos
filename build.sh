@@ -10,6 +10,7 @@ if [[ $1 == "arduino" ]]; then
             avr-size goldos
             avr-objdump -s -j .data goldos
             avr-objdump -S goldos > goldos.s
+            echo "" >> goldos.s
             nm --print-size --size-sort --radix=d goldos >> goldos.s
         else
             avr-objcopy -O ihex -R .eeprom goldos goldos.hex
@@ -25,7 +26,10 @@ else
     then
         if [[ $1 == "disasm" ]]; then
             size goldos*
-            objdump -M intel -S goldos* > goldos.s
+            objdump -M intel -S goldos* > out
+            echo "" >> out
+            nm --print-size --size-sort --radix=d goldos* >> out
+            mv out goldos.s
         else
             ./goldos
         fi

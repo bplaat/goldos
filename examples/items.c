@@ -1,5 +1,4 @@
 #include "goldos-dev.h"
-#include <stdlib.h>
 
 void main(void) {
     for (int8_t i = 0; i < atoi("5"); i++) {

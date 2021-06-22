@@ -1,4 +1,5 @@
-tools/send.exe
-examples/*.prg
-/goldos*
+*.exe
+*.prg
+*.s
+goldos
 eeprom.bin

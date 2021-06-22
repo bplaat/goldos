@@ -1,5 +1,4 @@
 #include "goldos-dev.h"
-#include <stdlib.h>
 
 void main(void) {
     char number_buffer[7];
