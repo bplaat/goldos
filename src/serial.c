@@ -206,30 +206,42 @@ void serial_print_word(uint16_t word, char padding) {
 
 void serial_print_memory(uint8_t *data, uint16_t size) {
     serial_print_P(PSTR("     "));
-
     for (uint8_t x = 0; x < 16; x++) {
         serial_print_byte(x, ' ');
         serial_write(x == 15 ? '\t' : ' ');
     }
-
     for (uint8_t x = 0; x < 16; x++) {
         serial_print_byte(x, '\0');
         serial_write(x == 15 ? '\n' : ' ');
     }
 
-    for (uint16_t y = 0; y < (size >> 4); y++) {
+    uint8_t lines = size >> 4;
+    if ((size & 15) != 0) lines++;
+    if (lines == 0) lines = 1;
+    for (uint16_t y = 0; y < lines; y++) {
         serial_print_word(y << 4, '0');
         serial_write(' ');
 
         for (size_t x = 0; x < 16; x++) {
-            serial_print_byte(data[(y << 4) + x], '0');
+            uint16_t address = (y << 4) | x;
+            if (address < size) {
+                serial_print_byte(data[address], '0');
+            } else {
+                serial_print("  ");
+            }
             serial_write(x == 15 ? '\t' : ' ');
         }
 
         for (size_t x = 0; x < 16; x++) {
-            char character = data[(y << 4) + x];
-            if (character  < ' ' || character > '~') {
-                character = '.';
+            char character;
+            uint16_t address = (y << 4) | x;
+            if (address < size) {
+                character = data[address];
+                if (character < ' ' || character > '~') {
+                    character = '.';
+                }
+            } else {
+                character = ' ';
             }
             serial_write(character);
             serial_write(x == 15 ? '\n' : ' ');

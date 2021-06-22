@@ -8,7 +8,7 @@ typedef struct Command {
     void (*command_function)(uint8_t argc, char **argv);
 } Command;
 
-#define COMMANDS_SIZE 30
+#define COMMANDS_SIZE 32
 
 extern const Command commands[];
 
@@ -39,6 +39,8 @@ void disk_command(uint8_t argc, char **argv);
 
 // File commands
 void read_command(uint8_t argc, char **argv);
+
+void hex_command(uint8_t argc, char **argv);
 
 void write_command(uint8_t argc, char **argv);
 

@@ -63,12 +63,10 @@ void eeprom_write_word(uint16_t address, uint16_t word) {
 
 void eeprom_dump(void) {
     serial_print_P(PSTR("     "));
-
     for (uint8_t x = 0; x < 16; x++) {
         serial_print_byte(x, ' ');
         serial_write(x == 15 ? '\t' : ' ');
     }
-
     for (uint8_t x = 0; x < 16; x++) {
         serial_print_byte(x, '\0');
         serial_write(x == 15 ? '\n' : ' ');
@@ -85,7 +83,7 @@ void eeprom_dump(void) {
 
         for (size_t x = 0; x < 16; x++) {
             char character = eeprom_read_byte((y << 4) + x);
-            if (character  < ' ' || character > '~') {
+            if (character < ' ' || character > '~') {
                 character = '.';
             }
             serial_write(character);

@@ -35,6 +35,8 @@ const PROGMEM char disk_command_name[] = "disk";
 
 const PROGMEM char read_command_name[] = "read";
 const PROGMEM char cat_command_name[] = "cat";
+const PROGMEM char hex_command_name[] = "hex";
+const PROGMEM char hd_command_name[] = "hd";
 const PROGMEM char write_command_name[] = "write";
 const PROGMEM char append_command_name[] = "append";
 const PROGMEM char add_command_name[] = "add";
@@ -67,6 +69,7 @@ const Command commands[] PROGMEM = {
     { disk_command_name, &disk_command },
 
     { read_command_name, &read_command }, { cat_command_name, &read_command },
+    { hex_command_name, &hex_command }, { hd_command_name, &hex_command },
     { write_command_name, &write_command },
     { append_command_name, &append_command }, { add_command_name, &append_command },
     { list_command_name, &list_command }, { ls_command_name, &list_command }, {dir_command_name, &list_command },
@@ -274,6 +277,66 @@ void read_command(uint8_t argc, char **argv) {
         }
     } else {
         serial_println_P(PSTR("Help: read [name]..."));
+    }
+}
+
+void hex_command(uint8_t argc, char **argv) {
+    if (argc >= 2) {
+        for (uint8_t i = 1; i < argc; i++) {
+            int8_t file = file_open(argv[i], FILE_OPEN_MODE_READ);
+            if (file != -1) {
+                serial_print_P(PSTR("     "));
+                for (uint8_t x = 0; x < 16; x++) {
+                    serial_print_byte(x, ' ');
+                    serial_write(x == 15 ? '\t' : ' ');
+                }
+                for (uint8_t x = 0; x < 16; x++) {
+                    serial_print_byte(x, '\0');
+                    serial_write(x == 15 ? '\n' : ' ');
+                }
+
+                uint8_t size = file_size(file);
+                uint8_t lines = size >> 4;
+                if ((size & 15) != 0) lines++;
+                if (lines == 0) lines = 1;
+                for (uint16_t y = 0; y < lines; y++) {
+                    serial_print_word(y << 4, '0');
+                    serial_write(' ');
+
+                    uint8_t buffer[16];
+                    file_read(file, (uint8_t *)buffer, sizeof(buffer));
+
+                    for (size_t x = 0; x < 16; x++) {
+                        if (((y << 4) | x) < size) {
+                            serial_print_byte(buffer[x], '0');
+                        } else {
+                            serial_print("  ");
+                        }
+                        serial_write(x == 15 ? '\t' : ' ');
+                    }
+
+                    for (size_t x = 0; x < 16; x++) {
+                        char character;
+                        if (((y << 4) | x) < size) {
+                            character = buffer[x];
+                            if (character < ' ' || character > '~') {
+                                character = '.';
+                            }
+                        } else {
+                            character = ' ';
+                        }
+                        serial_write(character);
+                        serial_write(x == 15 ? '\n' : ' ');
+                    }
+                }
+
+                file_close(file);
+            } else {
+                serial_println_P(PSTR("File open error!"));
+            }
+        }
+    } else {
+        serial_println_P(PSTR("Help: hex [name]..."));
     }
 }
 

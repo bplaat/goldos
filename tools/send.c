@@ -28,16 +28,20 @@ int main(int argc, char **argv) {
 
     if (argc >= 3) {
         size_t real_file_size;
-        char *file_data = file_read(argv[2], &real_file_size);
+        uint8_t *file_data = file_read(argv[2], &real_file_size);
+
+        uint16_t file_size = real_file_size;
+        printf("File size: %d bytes\n", file_size);
 
         char serial_port_buffer[32];
         sprintf(serial_port_buffer, "\\\\.\\%s", argv[1]);
         HANDLE serial_port = CreateFileA(serial_port_buffer, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
         if (serial_port == INVALID_HANDLE_VALUE) {
             printf("Can't open serial port: %s!\n", argv[1]);
-            // return EXIT_FAILURE;
+            return EXIT_FAILURE;
         }
 
+        printf("Connecting with Arduino...\n");
         DCB dcbSerialParams = {0};
         dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
         dcbSerialParams.BaudRate = 9600;
@@ -55,31 +59,31 @@ int main(int argc, char **argv) {
 
         // Start command
         char buffer[32];
-        sprintf(buffer, "write %s\r\n", argv[2]);
+        sprintf(buffer, "write %s\n", argv[2]);
         DWORD bytes_written;
         WriteFile(serial_port, buffer, strlen(buffer), &bytes_written, NULL);
-        printf("%s", buffer);
+        printf("Sending: %s", buffer);
 
         // Send file
-        uint16_t file_size = real_file_size;
-        uint16_t rest = file_size;
-        for (uint16_t i = 0; i < file_size; i += WRITE_BUFFER_SIZE) {
-            for (uint8_t j = 0; j < MIN(rest, WRITE_BUFFER_SIZE); j++) {
-                sprintf(buffer, "%02x", file_data[i + j]);
-                WriteFile(serial_port, buffer, strlen(buffer), &bytes_written, NULL);
-                printf("%s", buffer);
+        uint16_t position = 0;
+        while (position < file_size) {
+            strcpy(buffer, "");
+            for (uint8_t i = 0; i < WRITE_BUFFER_SIZE; i++) {
+                char byte_buffer[3];
+                sprintf(byte_buffer, "%02x", file_data[position++]);
+                strcat(buffer, byte_buffer);
+                if (position == file_size) {
+                    break;
+                }
             }
-
-            rest -= WRITE_BUFFER_SIZE;
-
-            strcpy(buffer, "\r\n");
+            strcat(buffer, "\n");
             WriteFile(serial_port, buffer, strlen(buffer), &bytes_written, NULL);
-            printf("%s", buffer);
+            printf("Sending: %s", buffer);
         }
 
-        strcpy(buffer, "\r\n");
+        strcpy(buffer, "\n");
         WriteFile(serial_port, buffer, strlen(buffer), &bytes_written, NULL);
-        printf("%s", buffer);
+        printf("Sending: %s", buffer);
 
         CloseHandle(serial_port);
 
