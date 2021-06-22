@@ -2,6 +2,9 @@
 #ifdef ARDUINO
     #include <avr/wdt.h>
 #endif
+#ifndef ARDUINO
+    #include <stdio.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include "utils.h"
@@ -79,9 +82,9 @@ const Command commands[] PROGMEM = {
 void random_command(uint8_t argc, char **argv) {
     int16_t random_number;
     if (argc >= 3) {
-        random_number = rand_int(atoi(argv[1]), atoi(argv[2]));
+        random_number = rand_int(strtol(argv[1], NULL, 10), strtol(argv[2], NULL, 10));
     } else if (argc >= 2) {
-        random_number = rand_int(0, atoi(argv[1]));
+        random_number = rand_int(0, strtol(argv[1], NULL, 10));
     } else {
         random_number = rand();
     }
@@ -93,7 +96,7 @@ void sum_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
         int16_t sum = 0;
         for (uint8_t i = 1; i < argc; i++) {
-            sum += atoi(argv[i]);
+            sum += strtol(argv[i], NULL, 10);
         }
 
         serial_print_number(sum, '\0');
@@ -107,7 +110,7 @@ void average_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
         int16_t sum = 0;
         for (uint8_t i = 1; i < argc; i++) {
-            sum += atoi(argv[i]);
+            sum += strtol(argv[i], NULL, 10);
         }
         serial_print_number(sum / (argc - 1), '\0');
         serial_write('\n');
@@ -214,7 +217,7 @@ void eeprom_command(uint8_t argc, char **argv) {
 void disk_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
         if (!strcmp_P(argv[1], PSTR("alloc")) && argc >= 4) {
-            uint16_t count = atoi(argv[2]);
+            uint16_t count = strtol(argv[2], NULL, 10);
             if (count == 0) count = 1;
             uint16_t address = disk_alloc(count);
             if (address != 0) {
@@ -274,17 +277,54 @@ void read_command(uint8_t argc, char **argv) {
     }
 }
 
+#define WRITE_BUFFER_SIZE 16
+
 void write_command(uint8_t argc, char **argv) {
-    if (argc >= 3) {
+    if (argc >= 2) {
         int8_t file = file_open(argv[1], FILE_OPEN_MODE_WRITE);
         if (file != -1) {
-            for (uint8_t i = 2; i < argc; i++) {
-                if (file_write(file, (uint8_t *)argv[i], -1) == -1) {
-                    serial_println_P(PSTR("File write error!"));
-                }
+            if (argc >= 3) {
+                for (uint8_t i = 2; i < argc; i++) {
+                    if (file_write(file, (uint8_t *)argv[i], -1) == -1) {
+                        serial_println_P(PSTR("File write error!"));
+                    }
 
-                if (i != argc - 1) {
-                    if (file_write(file, (uint8_t *)" ", 1) == -1) {
+                    if (i != argc - 1) {
+                        if (file_write(file, (uint8_t *)" ", 1) == -1) {
+                            serial_println_P(PSTR("File write error!"));
+                        }
+                    }
+                }
+            } else {
+                for (;;) {
+                    char input_buffer[WRITE_BUFFER_SIZE * 2 + 1];
+                    uint8_t input_buffer_size;
+                    serial_read_line(input_buffer, &input_buffer_size, sizeof(input_buffer));
+                    if (input_buffer[0] == '\0') {
+                        break;
+                    }
+
+                    uint8_t write_buffer[WRITE_BUFFER_SIZE];
+                    for (uint8_t i = 0; i < input_buffer_size; i++) {
+                        if (input_buffer[i] >= '0' && input_buffer[i] <= '9') {
+                            input_buffer[i] = input_buffer[i] - '0';
+                        } else if (input_buffer[i] >= 'a' && input_buffer[i] <='f') {
+                            input_buffer[i] = input_buffer[i] - 'a' + 10;
+                        } else if (input_buffer[i] >= 'A' && input_buffer[i] <='F') {
+                            input_buffer[i] = input_buffer[i] - 'A' + 10;
+                        } else {
+                            serial_println_P(PSTR("Not an hex character error!"));
+                            break;
+                        }
+
+                        if (i % 2 == 0) {
+                            write_buffer[i >> 1] = input_buffer[i] << 4;
+                        } else {
+                            write_buffer[i >> 1] = write_buffer[i >> 1] | input_buffer[i];
+                        }
+                    }
+
+                    if (file_write(file, write_buffer, input_buffer_size >> 1) == -1) {
                         serial_println_P(PSTR("File write error!"));
                     }
                 }
@@ -403,7 +443,7 @@ void stack_command(uint8_t argc, char **argv) {
                 serial_write('\n');
             }
             if (!strcmp_P(argv[2], PSTR("string"))) {
-                char string_buffer[64];
+                char string_buffer[48];
                 stack_pop_string(string_buffer);
                 serial_print_P(PSTR("String: "));
                 serial_print(string_buffer);
@@ -467,12 +507,26 @@ void heap_command(uint8_t argc, char **argv) {
                     serial_write('\n');
                 }
             }
-            if (!strcmp_P(argv[2], PSTR("dword")) || !strcmp_P(argv[2], PSTR("float"))) {
+            if (!strcmp_P(argv[2], PSTR("dword"))) {
                 uint32_t *dword = heap_get_dword(id);
                 if (dword != NULL) {
                     serial_print_P(PSTR("Dword: "));
                     serial_print_word(*dword >> 16, '0');
                     serial_print_word(*dword & 0xffff, '0');
+                    serial_write('\n');
+                }
+            }
+            if (!strcmp_P(argv[2], PSTR("float"))) {
+                float *number = heap_get_float(id);
+                if (number != NULL) {
+                    serial_print_P(PSTR("Float: "));
+                    char number_buffer[16];
+                    #ifdef ARDUINO
+                        dtostrf(*number, 0, 4, number_buffer);
+                    #else
+                        sprintf(number_buffer, "%.4f", *number);
+                    #endif
+                    serial_print(number_buffer);
                     serial_write('\n');
                 }
             }
@@ -487,7 +541,11 @@ void heap_command(uint8_t argc, char **argv) {
         }
 
         if (!strcmp_P(argv[1], PSTR("clear"))) {
-            heap_begin();
+            if (argc >= 3) {
+                heap_clear(strtol(argv[2], NULL, 16));
+            } else {
+                heap_begin();
+            }
         }
 
         if (!strcmp_P(argv[1], PSTR("dump"))) {
@@ -498,6 +556,6 @@ void heap_command(uint8_t argc, char **argv) {
             heap_inspect();
         }
     } else {
-        serial_println_P(PSTR("Help: heap set [type] [id] [value], heap get [type] [id], heap clear, heap dump, heap inspect / list"));
+        serial_println_P(PSTR("Help: heap set [type] [id] [value], heap get [type] [id], heap clear [id]?, heap dump, heap inspect / list"));
     }
 }

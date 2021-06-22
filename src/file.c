@@ -2,7 +2,6 @@
 #include "disk.h"
 #include "eeprom.h"
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 
 File files[FILE_SIZE];

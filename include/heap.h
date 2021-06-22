@@ -37,6 +37,8 @@ float *heap_get_float(uint8_t id);
 
 char *heap_get_string(uint8_t id);
 
+void heap_clear(uint8_t id);
+
 void heap_inspect(void);
 
 #endif

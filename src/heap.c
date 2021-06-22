@@ -117,8 +117,8 @@ void heap_set_dword(uint8_t id, uint32_t dword) {
     if (address != 0) {
         heap[address] = id;
         heap[address + 1] = dword & 0xff;
-        heap[address + 2] = (dword & 0xff) >> 8;
-        heap[address + 3] = (dword & 0xff) >> 16;
+        heap[address + 2] = (dword >> 8) & 0xff;
+        heap[address + 3] = (dword >> 16) & 0xff;
         heap[address + 4] = dword >> 24;
     }
 }
@@ -181,6 +181,13 @@ char *heap_get_string(uint8_t id) {
         return (char *)&heap[address + 1];
     } else {
         return NULL;
+    }
+}
+
+void heap_clear(uint8_t id) {
+    uint8_t address = heap_find(id);
+    if (address != 0) {
+        heap_free(address);
     }
 }
 

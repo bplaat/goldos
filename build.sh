@@ -4,12 +4,13 @@ if [[ $1 == "arduino" ]]; then
     PATH=$PATH:"C:\Program Files (x86)\Arduino\hardware\tools\avr\bin"
     if avr-gcc -Wall -Wextra -Wpedantic -Werror --std=c99 -Os \
         -DARDUINO -DF_CPU=16000000UL -DBAUD=9600UL -DEEPROM_SIZE=1024 \
-        -mmcu=atmega328p -Iinclude/ $(find src -name *.c) -o goldos
+        -mmcu=atmega328p -Iinclude/ $(find src -name *.c) -lm -o goldos
     then
         if [[ $2 == "disasm" ]]; then
             avr-size goldos
             avr-objdump -s -j .data goldos
             avr-objdump -S goldos > goldos.s
+            nm --print-size --size-sort --radix=d goldos >> goldos.s
         else
             avr-objcopy -O ihex -R .eeprom goldos goldos.hex
             avrdude -C "C:\Program Files (x86)\Arduino\hardware\tools\avr/etc/avrdude.conf" \
@@ -19,7 +20,7 @@ if [[ $1 == "arduino" ]]; then
         fi
     fi
 else
-    if gcc -Wall -Wextra -Wpedantic -Werror --std=c99 -Os -DDEBUG -DEEPROM_SIZE=256 \
+    if gcc -Wall -Wextra -Wpedantic -Werror --std=c99 -Os -DDEBUG -DEEPROM_SIZE=512 \
         -Iinclude/ $(find src -name *.c) -o goldos
     then
         if [[ $1 == "disasm" ]]; then
