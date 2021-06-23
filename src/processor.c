@@ -191,55 +191,57 @@ ProcessorState processor_clock(Processor *p) {
             p->r[24] = file_open((char *)&p->ram[file_name - 0x20 - 0x40], file_mode);
         }
 
-        // file_name
-        if (p->pc == 14) {
-            int8_t file = p->r[24];
-            uint16_t buffer = (p->r[23] << 8) | p->r[22];
-            if (p->debug) printf_P(PSTR("file_name(%d, 0x%04x)\n"), file, buffer);
+        #ifndef ARDUINO
+            // file_name
+            if (p->pc == 14) {
+                int8_t file = p->r[24];
+                uint16_t buffer = (p->r[23] << 8) | p->r[22];
+                if (p->debug) printf_P(PSTR("file_name(%d, 0x%04x)\n"), file, buffer);
 
-            p->r[24] = file_name(file, (char *)&p->ram[buffer - 0x20 - 0x40]);
-        }
+                p->r[24] = file_name(file, (char *)&p->ram[buffer - 0x20 - 0x40]);
+            }
 
-        // file_size
-        if (p->pc == 16) {
-            int8_t file = p->r[24];
-            if (p->debug) printf_P(PSTR("file_size(%d)\n"), file);
+            // file_size
+            if (p->pc == 16) {
+                int8_t file = p->r[24];
+                if (p->debug) printf_P(PSTR("file_size(%d)\n"), file);
 
-            int16_t size = file_size(file);
-            p->r[24] = size & 0xff;
-            p->r[25] = size >> 8;
-        }
+                int16_t size = file_size(file);
+                p->r[24] = size & 0xff;
+                p->r[25] = size >> 8;
+            }
 
-        // file_position
-        if (p->pc == 18) {
-            int8_t file = p->r[24];
-            if (p->debug) printf_P(PSTR("file_position(%d)\n"), file);
+            // file_position
+            if (p->pc == 18) {
+                int8_t file = p->r[24];
+                if (p->debug) printf_P(PSTR("file_position(%d)\n"), file);
 
-            int16_t position = file_position(file);
-            p->r[24] = position & 0xff;
-            p->r[25] = position >> 8;
-        }
+                int16_t position = file_position(file);
+                p->r[24] = position & 0xff;
+                p->r[25] = position >> 8;
+            }
 
-        // file_seek
-        if (p->pc == 20) {
-            int8_t file = p->r[24];
-            int16_t position = (p->r[23] << 8) | p->r[22];
-            if (p->debug) printf_P(PSTR("file_name(%d, 0x%04x)\n"), file, position);
+            // file_seek
+            if (p->pc == 20) {
+                int8_t file = p->r[24];
+                int16_t position = (p->r[23] << 8) | p->r[22];
+                if (p->debug) printf_P(PSTR("file_name(%d, 0x%04x)\n"), file, position);
 
-            p->r[24] = file_seek(file, position);
-        }
+                p->r[24] = file_seek(file, position);
+            }
 
-        // file_read
-        if (p->pc == 22) {
-            int8_t file = p->r[24];
-            uint16_t buffer = (p->r[23] << 8) | p->r[22];
-            uint16_t size = (p->r[21] << 8) | p->r[20];
-            if (p->debug) printf_P(PSTR("file_read(%d, 0x%04x, 0x%04x)\n"), file, buffer, size);
+            // file_read
+            if (p->pc == 22) {
+                int8_t file = p->r[24];
+                uint16_t buffer = (p->r[23] << 8) | p->r[22];
+                uint16_t size = (p->r[21] << 8) | p->r[20];
+                if (p->debug) printf_P(PSTR("file_read(%d, 0x%04x, 0x%04x)\n"), file, buffer, size);
 
-            int16_t bytes_read = file_read(file, &p->ram[buffer - 0x20 - 0x40], size);
-            p->r[24] = bytes_read & 0xff;
-            p->r[25] = bytes_read >> 8;
-        }
+                int16_t bytes_read = file_read(file, &p->ram[buffer - 0x20 - 0x40], size);
+                p->r[24] = bytes_read & 0xff;
+                p->r[25] = bytes_read >> 8;
+            }
+        #endif
 
         // file_write
         if (p->pc == 24) {
