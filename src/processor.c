@@ -3,6 +3,7 @@
 #include "utils.h"
 #include "serial.h"
 #include "eeprom.h"
+#include "file.h"
 
 void processor_init(Processor *p, bool debug, uint16_t pgm_address) {
     p->running = true;
@@ -30,13 +31,6 @@ uint8_t processor_read(Processor *p, uint16_t addr) {
 
 void processor_write(Processor *p, uint16_t addr, uint8_t data) {
     if (addr < 0x20) p->r[addr] = data;
-    if (addr == 0x20 + 0x0f) {
-        if (p->debug) {
-            printf_P(PSTR("OUTPUT: %c\n"), (char)data);
-        } else {
-            serial_write((char)data);
-        }
-    }
     if (addr == 0x20 + 0x3d) p->sp = (p->sp & 0b1100000000) | data;
     if (addr == 0x20 + 0x3e) p->sp = ((data & 0b11) << 8) | (p->sp & 0xff);
     if (addr == 0x20 + 0x3f) p->sreg.data = data;
@@ -93,6 +87,8 @@ void processor_sub_with_half_carry(Processor *p, uint8_t a, uint8_t b, bool carr
     processor_sub_with_carry(p, a, b, carry_in, c, zero_carry);
 }
 
+const PROGMEM char output_string[] = "OUTPUT: ";
+
 ProcessorState processor_clock(Processor *p) {
     if (!p->running) return PROCESSOR_STATE_HALTED;
 
@@ -119,6 +115,160 @@ ProcessorState processor_clock(Processor *p) {
             p->sreg.flags.c ? 'C' : '-');
         printf_P(PSTR(" %02x %02x  "), i & 0xff, i >> 8);
     }
+
+    // ###############################################################################
+    // ########################## SPECIAL FUNCTION VECTORS ###########################
+    // ###############################################################################
+
+    if (p->pc >= 2 && p->pc <= 26) {
+        // ### Serial API ###
+
+        // serial_write
+        if (p->pc == 2) {
+            char character = p->r[24];
+            if (p->debug) printf_P(PSTR("serial_write(0x%02x)\n"), character);
+
+            if (p->debug) serial_print_P(output_string);
+            serial_write(character);
+            if (p->debug) serial_write('\n');
+        }
+
+        // serial_print
+        if (p->pc == 4) {
+            uint16_t string = (p->r[25] << 8) | p->r[24];
+            if (p->debug) printf_P(PSTR("serial_print(0x%04x)\n"), string);
+
+            if (p->debug) serial_print_P(output_string);
+            serial_print((char *)&p->ram[string - 0x20 - 0x40]);
+            if (p->debug) serial_write('\n');
+        }
+
+        // serial_print_P
+        if (p->pc == 6) {
+            uint16_t string = (p->r[25] << 8) | p->r[24];
+            if (p->debug) printf_P(PSTR("serial_print_P(0x%04x)\n"), string);
+
+            if (p->debug) serial_print_P(output_string);
+            uint16_t position = p->pgm_address + string;
+            char character;
+            while ((character = eeprom_read_byte(position++)) != '\0') {
+                serial_write(character);
+            }
+            if (p->debug) serial_write('\n');
+        }
+
+        // serial_println
+        if (p->pc == 8) {
+            uint16_t string = (p->r[25] << 8) | p->r[24];
+            if (p->debug) printf_P(PSTR("serial_println(0x%04x)\n"), string);
+
+            if (p->debug) serial_print_P(output_string);
+            serial_println((char *)&p->ram[string - 0x20 - 0x40]);
+        }
+
+        // serial_println_P
+        if (p->pc == 10) {
+            uint16_t string = (p->r[25] << 8) | p->r[24];
+            if (p->debug) printf_P(PSTR("serial_println_P(0x%04x)\n"), string);
+
+            if (p->debug) serial_print_P(output_string);
+            uint16_t position = p->pgm_address + string;
+            char character;
+            while ((character = eeprom_read_byte(position++)) != '\0') {
+                serial_write(character);
+            }
+            serial_write('\n');
+        }
+
+        // ### File API ###
+
+        // file_open
+        if (p->pc == 12) {
+            uint16_t file_name = (p->r[25] << 8) | p->r[24];
+            uint8_t file_mode = p->r[22];
+            if (p->debug) printf_P(PSTR("file_open(0x%04x, %d)\n"), file_name, file_mode);
+
+            p->r[24] = file_open((char *)&p->ram[file_name - 0x20 - 0x40], file_mode);
+        }
+
+        // file_name
+        if (p->pc == 14) {
+            int8_t file = p->r[24];
+            uint16_t buffer = (p->r[23] << 8) | p->r[22];
+            if (p->debug) printf_P(PSTR("file_name(%d, 0x%04x)\n"), file, buffer);
+
+            p->r[24] = file_name(file, (char *)&p->ram[buffer - 0x20 - 0x40]);
+        }
+
+        // file_size
+        if (p->pc == 16) {
+            int8_t file = p->r[24];
+            if (p->debug) printf_P(PSTR("file_size(%d)\n"), file);
+
+            int16_t size = file_size(file);
+            p->r[24] = size & 0xff;
+            p->r[25] = size >> 8;
+        }
+
+        // file_position
+        if (p->pc == 18) {
+            int8_t file = p->r[24];
+            if (p->debug) printf_P(PSTR("file_position(%d)\n"), file);
+
+            int16_t position = file_position(file);
+            p->r[24] = position & 0xff;
+            p->r[25] = position >> 8;
+        }
+
+        // file_seek
+        if (p->pc == 20) {
+            int8_t file = p->r[24];
+            int16_t position = (p->r[23] << 8) | p->r[22];
+            if (p->debug) printf_P(PSTR("file_name(%d, 0x%04x)\n"), file, position);
+
+            p->r[24] = file_seek(file, position);
+        }
+
+        // file_read
+        if (p->pc == 22) {
+            int8_t file = p->r[24];
+            uint16_t buffer = (p->r[23] << 8) | p->r[22];
+            uint16_t size = (p->r[21] << 8) | p->r[20];
+            if (p->debug) printf_P(PSTR("file_read(%d, 0x%04x, 0x%04x)\n"), file, buffer, size);
+
+            int16_t bytes_read = file_read(file, &p->ram[buffer - 0x20 - 0x40], size);
+            p->r[24] = bytes_read & 0xff;
+            p->r[25] = bytes_read >> 8;
+        }
+
+        // file_write
+        if (p->pc == 24) {
+            int8_t file = p->r[24];
+            uint16_t buffer = (p->r[23] << 8) | p->r[22];
+            uint16_t size = (p->r[21] << 8) | p->r[20];
+            if (p->debug) printf_P(PSTR("file_write(%d, 0x%04x, 0x%04x)\n"), file, buffer, size);
+
+            int16_t bytes_written = file_write(file, &p->ram[buffer - 0x20 - 0x40], size);
+            p->r[24] = bytes_written & 0xff;
+            p->r[25] = bytes_written >> 8;
+        }
+
+        // file_close
+        if (p->pc == 26) {
+            int8_t file = p->r[24];
+            if (p->debug) printf_P(PSTR("file_close(%d)\n"), file);
+
+            p->r[24] = file_close(file);
+        }
+
+        p->pc = processor_read(p, ++p->sp);
+        p->pc |= (processor_read(p, ++p->sp) << 8);
+        return PROCESSOR_STATE_RETURN;
+    }
+
+    // ###############################################################################
+    // ############################# INSTRUCTION DECODING ############################
+    // ###############################################################################
 
     p->pc += 2;
 

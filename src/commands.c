@@ -281,6 +281,9 @@ void disk_command(uint8_t argc, char **argv) {
 }
 
 // File commands
+const PROGMEM char file_open_error[] = "File open error!";
+const PROGMEM char file_write_error[] = "File write error!";
+
 void read_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
         for (uint8_t i = 1; i < argc; i++) {
@@ -294,7 +297,7 @@ void read_command(uint8_t argc, char **argv) {
                 }
                 file_close(file);
             } else {
-                serial_println_P(PSTR("File open error!"));
+                serial_println_P(file_open_error);
             }
         }
     } else {
@@ -354,7 +357,7 @@ void hex_command(uint8_t argc, char **argv) {
 
                 file_close(file);
             } else {
-                serial_println_P(PSTR("File open error!"));
+                serial_println_P(file_open_error);
             }
         }
     } else {
@@ -389,12 +392,12 @@ void write_command(uint8_t argc, char **argv) {
 
                 for (uint8_t i = 2; i < argc; i++) {
                     if (file_write(file, (uint8_t *)argv[i], -1) == -1) {
-                        serial_println_P(PSTR("File write error!"));
+                        serial_println_P(file_write_error);
                     }
 
                     if (i != argc - 1) {
                         if (file_write(file, (uint8_t *)" ", 1) == -1) {
-                            serial_println_P(PSTR("File write error!"));
+                            serial_println_P(file_write_error);
                         }
                     }
                 }
@@ -432,13 +435,13 @@ void write_command(uint8_t argc, char **argv) {
                     }
 
                     if (file_write(file, write_buffer, input_buffer_size >> 1) == -1) {
-                        serial_println_P(PSTR("File write error!"));
+                        serial_println_P(file_write_error);
                     }
                 }
             }
             file_close(file);
         } else {
-            serial_println_P(PSTR("File open error!"));
+            serial_println_P(file_open_error);
         }
     } else {
         serial_println_P(PSTR("Help: write [name] [text]..."));
@@ -451,18 +454,18 @@ void append_command(uint8_t argc, char **argv) {
         if (file != -1) {
             for (uint8_t i = 2; i < argc; i++) {
                 if (file_write(file, (uint8_t *)argv[i], -1) == -1) {
-                    serial_println_P(PSTR("File write error!"));
+                    serial_println_P(file_write_error);
                 }
 
                 if (i != argc - 1) {
                     if (file_write(file, (uint8_t *)" ", 1) == -1) {
-                        serial_println_P(PSTR("File write error!"));
+                        serial_println_P(file_write_error);
                     }
                 }
             }
             file_close(file);
         } else {
-            serial_println_P(PSTR("File open error!"));
+            serial_println_P(file_open_error);
         }
     } else {
         serial_println_P(PSTR("Help: append [name] [text]..."));
@@ -668,6 +671,8 @@ void heap_command(uint8_t argc, char **argv) {
 }
 
 // Processor commands
+const PROGMEM char process_open_error[] = "Process open error!";
+
 void run_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
         int8_t process = process_open(argv[1], false);
@@ -677,7 +682,7 @@ void run_command(uint8_t argc, char **argv) {
             }
             process_wait(process);
         } else {
-            serial_println_P(PSTR("Process open error!"));
+            serial_println_P(process_open_error);
         }
     } else {
         serial_println_P(PSTR("Help: run [name] &?"));
@@ -693,7 +698,7 @@ void debug_command(uint8_t argc, char **argv) {
             }
             process_wait(process);
         } else {
-            serial_println_P(PSTR("Process open error!"));
+            serial_println_P(process_open_error);
         }
     } else {
         serial_println_P(PSTR("Help: debug [name] &?"));

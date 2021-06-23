@@ -56,11 +56,8 @@ bool process_wait(int8_t process) {
             processor_clock(&processes[process].processor);
 
             if (!runToClose && processes[process].processor.debug) {
-                #ifndef ARDUINO
-                    serial_read_input();
-                #endif
-                char character;
-                while ((character = serial_read()) == '\0');
+                while (serial_available() == 0);
+                char character = serial_read();
 
                 if (character == 's') {
                     while (

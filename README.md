@@ -1,9 +1,6 @@
 # bplaat/goldos
 A simple Operating System for AVR microcontrollers and runnable as a normal program
 
-## TODO
-- Proccessor foreign functions
-
 ## How to build it?
 Run this command to build and run GoldOS on your own computer (Windows only for the moment):
 ```
