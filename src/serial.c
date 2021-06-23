@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "processes.h"
 
 char serial_input_buffer[SERIAL_INPUT_BUFFER_SIZE];
 
@@ -77,14 +78,22 @@ void serial_begin(void) {
 #else
     void serial_read_input(void) {
         #if __WIN32__
-            char character;
-            DWORD bytes_read;
-            ReadConsole(stdin_handle, &character, 1, &bytes_read, NULL);
-            if (bytes_read > 0) {
-                if (serial_input_write_position == SERIAL_INPUT_BUFFER_SIZE) {
-                    serial_input_write_position = 0;
+            INPUT_RECORD irInBuf[128];
+            DWORD cNumRead;
+            PeekConsoleInput(stdin_handle, irInBuf, 128, &cNumRead);
+            if (cNumRead > 0) {
+                ReadConsoleInput(stdin_handle, irInBuf, 128, &cNumRead);
+                for (uint32_t i = 0; i < cNumRead; i++) {
+                    if (irInBuf[i].EventType == KEY_EVENT) {
+                        char character = irInBuf[i].Event.KeyEvent.uChar.AsciiChar;
+                        if (character == 0) continue;
+                        if (serial_input_write_position == SERIAL_INPUT_BUFFER_SIZE) {
+                            serial_input_write_position = 0;
+                        }
+                        serial_input_buffer[serial_input_write_position++] = character;
+                        break;
+                    }
                 }
-                serial_input_buffer[serial_input_write_position++] = character;
             }
         #endif
     }
@@ -139,6 +148,8 @@ void serial_read_line(char *buffer, uint8_t *size, uint8_t max_size) {
                 return;
             }
         }
+
+        processes_run();
     }
 }
 

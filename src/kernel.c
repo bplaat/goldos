@@ -1,10 +1,10 @@
 #include <string.h>
 #include <stdbool.h>
+#include "utils.h"
 #include "serial.h"
 #include "eeprom.h"
 #include "commands.h"
 #include "heap.h"
-#include "utils.h"
 
 #define INPUT_BUFFER_SIZE 48
 

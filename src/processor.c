@@ -93,8 +93,8 @@ void processor_sub_with_half_carry(Processor *p, uint8_t a, uint8_t b, bool carr
     processor_sub_with_carry(p, a, b, carry_in, c, zero_carry);
 }
 
-void processor_clock(Processor *p) {
-    if (!p->running) return;
+ProcessorState processor_clock(Processor *p) {
+    if (!p->running) return PROCESSOR_STATE_HALTED;
 
     uint16_t i = eeprom_read_word(p->pgm_address + p->pc);
 
@@ -165,7 +165,7 @@ void processor_clock(Processor *p) {
 
                 p->sreg.flags.n = bit(p->r[Rd], 7);
                 processor_flags(p, p->r[Rd], false, p->sreg.flags.n != p->sreg.flags.c);
-                return;
+                return PROCESSOR_STATE_NORMAL;
             }
 
             // rol Rd | 0001 11dd dddd dddd
@@ -177,12 +177,12 @@ void processor_clock(Processor *p) {
 
             p->sreg.flags.n = bit(p->r[Rd], 7);
             processor_flags(p, p->r[Rd], false, p->sreg.flags.n != p->sreg.flags.c);
-            return;
+            return PROCESSOR_STATE_NORMAL;
         }
 
         if (p->debug) printf_P(PSTR("%" PRIpstr " r%d (0x%02x), r%d (0x%02x)\n"), carry ? PSTR("adc") : PSTR("add"), Rd, p->r[Rd], Rr, p->r[Rr]);
         processor_add_with_half_carry(p, p->r[Rd], p->r[Rr], carry ? p->sreg.flags.c : false, &p->r[Rd]);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // adiw Rd, K | 1001 0110 KKdd KKKK
@@ -190,7 +190,7 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("adiw r%d (0x%02x%02x), 0x%02x\n"), Rdwp, p->r[Rdwp + 1], p->r[Rdwp], K6);
         processor_add_with_carry(p, p->r[Rdwp], K6, false, &p->r[Rdwp]);
         processor_add_with_carry(p, p->r[Rdwp + 1], 0, p->sreg.flags.c, &p->r[Rdwp + 1]);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // sub Rd, Rr | sbc Rd, Rr | 000c 10rd dddd rrrr
@@ -198,7 +198,7 @@ void processor_clock(Processor *p) {
         bool carry = bit(i, 12) == 0;
         if (p->debug) printf_P(PSTR("%" PRIpstr " r%d (0x%02x), r%d (0x%02x)\n"), carry ? PSTR("sbc") : PSTR("sub"), Rd, p->r[Rd], Rr, p->r[Rr]);
         processor_sub_with_half_carry(p, p->r[Rd], p->r[Rr], carry ? p->sreg.flags.c : false, &p->r[Rd], carry);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // subi Rd, K | sbci Rd, K | 010c KKKK dddd KKKK
@@ -206,7 +206,7 @@ void processor_clock(Processor *p) {
         bool carry = bit(i, 12) == 0;
         if (p->debug) printf_P(PSTR("%" PRIpstr " r%d (0x%02x), 0x%02x\n"), carry ? PSTR("sbci") : PSTR("subi"), Rdu, p->r[Rdu], K);
         processor_sub_with_half_carry(p, p->r[Rdu], K, carry ? p->sreg.flags.c : false, &p->r[Rdu], carry);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // sbiw Rd, K | 1001 0111 KKdd KKKK
@@ -214,7 +214,7 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("sbiw r%d (0x%02x%02x), 0x%02x\n"), Rdwp, p->r[Rdwp + 1], p->r[Rdwp], K6);
         processor_sub_with_carry(p, p->r[Rdwp], K6, false, &p->r[Rdwp], false);
         processor_sub_with_carry(p, p->r[Rdwp + 1], 0, p->sreg.flags.c, &p->r[Rdwp + 1], false);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // and Rd, Rr | 0010 00rd dddd rrrr
@@ -222,7 +222,7 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("and r%d (0x%02x), r%d (0x%02x)\n"), Rd, p->r[Rd], Rr, p->r[Rr]);
         p->r[Rd] &= p->r[Rr];
         processor_flags(p, p->r[Rd], false, false);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // andi Rd, K | 0111 KKKK dddd KKKK
@@ -230,7 +230,7 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("andi r%d (0x%02x), 0x%02x\n"), Rdu, p->r[Rdu], K);
         p->r[Rdu] &= K;
         processor_flags(p, p->r[Rdu], false, false);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // or Rd, Rr | 0010 10rd dddd rrrr
@@ -238,7 +238,7 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("or r%d (0x%02x), r%d (0x%02x)\n"), Rd, p->r[Rd], Rr, p->r[Rr]);
         p->r[Rd] |= p->r[Rr];
         processor_flags(p, p->r[Rd], false, false);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // ori Rd, K | 0110 KKKK dddd KKKK
@@ -246,7 +246,7 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("ori r%d (0x%02x), 0x%02x\n"), Rdu, p->r[Rdu], K);
         p->r[Rdu] |= K;
         processor_flags(p, p->r[Rdu], false, false);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // eor Rd, Rr | 0010 01rd dddd rrrr
@@ -254,35 +254,35 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("eor r%d (0x%02x), r%d (0x%02x)\n"), Rd, p->r[Rd], Rr, p->r[Rr]);
         p->r[Rd] ^= p->r[Rr];
         processor_flags(p, p->r[Rd], false, false);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // com Rd | 1001 010d dddd 0000
     if ((i & 0b1111111000001111) == 0b1001010000000000) {
         if (p->debug) printf_P(PSTR("com r%d (0x%02x)\n"), Rd, p->r[Rd]);
         processor_sub_with_carry(p, 0xff, p->r[Rd], false, &p->r[Rd], false);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // neg Rd | 1001 010d dddd 0001
     if ((i & 0b1111111000001111) == 0b1001010000000001) {
         if (p->debug) printf_P(PSTR("neg r%d (0x%02x)\n"), Rd, p->r[Rd]);
         processor_sub_with_half_carry(p, 0, p->r[Rd], false, &p->r[Rd], false);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // inc Rd | 1001 010d dddd 0011
     if ((i & 0b1111111000001111) == 0b1001010000000011) {
         if (p->debug) printf_P(PSTR("inc r%d (0x%02x)\n"), Rd, p->r[Rd]);
         processor_add(p, p->r[Rd], 1, false, &p->r[Rd]);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // dec Rd | 1001 010d dddd 1010
     if ((i & 0b1111111000001111) == 0b1001010000001010) {
         if (p->debug) printf_P(PSTR("dec r%d (0x%02x)\n"), Rd, p->r[Rd]);
         processor_sub(p, p->r[Rd], 1, false, &p->r[Rd], false);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // ###############################################################################
@@ -294,15 +294,19 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("rjmp %+d\n"), k);
         if (k == -2) p->running = false;
         p->pc += k;
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // ijmp | 1001 0100 0000 1001
     if (i == 0b1001010000001001) {
         if (p->debug) printf_P(PSTR("ijmp (0x%04x)"), *Z);
         p->pc = *Z;
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
+
+    // Instruction: JMP
+    // Encoding: 1001 010k kkkk 110k
+    // Encoding: kkkk kkkk kkkk kkkk
 
     // rcall | 1101 kkkk kkkk kkkk
     if ((i & 0b1111000000000000) == 0b1101000000000000) {
@@ -310,7 +314,7 @@ void processor_clock(Processor *p) {
         processor_write(p, p->sp--, p->pc >> 8);
         processor_write(p, p->sp--, p->pc & 0xff);
         p->pc += k;
-        return;
+        return PROCESSOR_STATE_CALL;
     }
 
     // icall | 1001 0101 0000 1001
@@ -319,8 +323,12 @@ void processor_clock(Processor *p) {
         processor_write(p, p->sp--, p->pc >> 8);
         processor_write(p, p->sp--, p->pc & 0xff);
         p->pc = *Z;
-        return;
+        return PROCESSOR_STATE_CALL;
     }
+
+    // Instruction: CALL
+    // Encoding: 1001 010k kkkk 111k
+    // Encoding: kkkk kkkk kkkk kkkk
 
     // ret | reti | 1001 0101 000i 1000
     if ((i & 0b1111111111101111) == 0b1001010100001000) {
@@ -329,14 +337,14 @@ void processor_clock(Processor *p) {
         p->pc = processor_read(p, ++p->sp);
         p->pc |= (processor_read(p, ++p->sp) << 8);
         if (interrupt) p->sreg.flags.i = true;
-        return;
+        return PROCESSOR_STATE_RETURN;
     }
 
     // cpse Rd, Rr | 0001 00rd dddd rrrr
     if ((i & 0b1111110000000000) == 0b0001000000000000) {
         if (p->debug) printf_P(PSTR("cpse r%d (0x%02x), r%d (0x%02x)\n"), Rd, p->r[Rd], Rr, p->r[Rr]);
         if (p->r[Rd] == p->r[Rr]) p->pc += 2;
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // cp Rd, Rr | cpc Rd, Rr | 000c 01rd dddd rrrr
@@ -345,7 +353,7 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("%" PRIpstr " r%d (0x%02x), r%d (0x%02x)\n"), carry ? PSTR("cpc") : PSTR("cp"), Rd, p->r[Rd], Rr, p->r[Rr]);
         uint8_t c;
         processor_sub_with_half_carry(p, p->r[Rd], p->r[Rr], carry ? p->sreg.flags.c : false, &c, carry);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // cpi Rd, K | 0011 KKKK dddd KKKK
@@ -353,7 +361,7 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("cpi r%d (0x%02x), 0x%02x\n"), Rdu, p->r[Rdu], K);
         uint8_t c;
         processor_sub_with_half_carry(p, p->r[Rdu], K, false, &c, false);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // sbrs Rr, b | sbrc Rr, b | 1111 11sd dddd 0bbb
@@ -361,7 +369,7 @@ void processor_clock(Processor *p) {
         bool set = bit(i, 9) == 0;
         if (p->debug) printf_P(PSTR("%" PRIpstr " r%d (0x%02x), %d\n"), set ? PSTR("sbrs") : PSTR("sbrc"), Rd, p->r[Rd], b);
         if (bit(p->r[Rd], b) == set) p->pc += 2;
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // sbis A, b | sbic A, b | 1001 10s1 AAAA Abbb
@@ -369,7 +377,7 @@ void processor_clock(Processor *p) {
         bool set = bit(i, 9) == 0;
         if (p->debug) printf_P(PSTR("%" PRIpstr " 0x%02x, %d\n"), set ? PSTR("sbis") : PSTR("sbic"), Al, b);
         if (bit(processor_read(p, 0x20 + Al), b) == set) p->pc += 2;
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // brbs s, k | brbc s, k | 1111 0skk kkkk kbbb
@@ -377,7 +385,7 @@ void processor_clock(Processor *p) {
         bool set = bit(i, 10) == 0;
         if (p->debug) printf_P(PSTR("%" PRIpstr " %d (%c), %+d\n"), set ? PSTR("brbs") : PSTR("brbc"), b, pgm_read_byte(PSTR("CZNVSHTI") + b), k7);
         if (bit(p->sreg.data, b) == set) p->pc += k7;
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // ###############################################################################
@@ -388,7 +396,7 @@ void processor_clock(Processor *p) {
     if ((i & 0b1111110000000000) == 0b0010110000000000) {
         if (p->debug) printf_P(PSTR("mov r%d, r%d (0x%02x)\n"), Rd, Rr, p->r[Rr]);
         p->r[Rd] = p->r[Rr];
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // movw Rd, Rr | 0000 0001 dddd rrrr
@@ -396,21 +404,21 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("movw r%d, r%d (0x%02x%02x)\n"), Rdw, Rrw, p->r[Rrw + 1], p->r[Rrw]);
         p->r[Rdw] = p->r[Rrw];
         p->r[Rdw + 1] = p->r[Rrw + 1];
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // ldi Rdu, K | 1110 KKKK dddd KKKK
     if ((i & 0b1111000000000000) == 0b1110000000000000) {
         if (p->debug) printf_P(PSTR("ldi r%d, 0x%02x\n"), Rdu, K);
         p->r[Rdu] = K;
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // ld Rd, X | 1001 000d dddd 1100
     if ((i & 0b1111111000001111) == 0b1001000000001100) {
         if (p->debug) printf_P(PSTR("ld r%d, X (0x%04x)\n"), Rd, *X);
         p->r[Rd] = processor_read(p, *X);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // ld Rd, X+ | 1001 000d dddd 1101
@@ -418,7 +426,7 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("ld r%d, X+ (0x%04x)\n"), Rd, *X);
         p->r[Rd] = processor_read(p, *X);
         (*X)++;
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // ld Rd, -X | 1001 000d dddd 1110
@@ -426,14 +434,14 @@ void processor_clock(Processor *p) {
         (*X)--;
         if (p->debug) printf_P(PSTR("ld r%d, -X (0x%04x)\n"), Rd, *X);
         p->r[Rd] = processor_read(p, *X);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // ld Rd, Y | 1000 000d dddd 1000
     if ((i & 0b1111111000001111) == 0b1000000000001000) {
         if (p->debug) printf_P(PSTR("ld r%d, Y (0x%04x)\n"), Rd, *Y);
         p->r[Rd] = processor_read(p, *Y);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // ld Rd, Y+ | 1001 000d dddd 1001
@@ -441,7 +449,7 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("ld r%d, Y+ (0x%04x)\n"), Rd, *Y);
         p->r[Rd] = processor_read(p, *Y);
         (*Y)++;
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // ld Rd, -Y | 1001 000d dddd 1010
@@ -449,14 +457,27 @@ void processor_clock(Processor *p) {
         (*Y)--;
         if (p->debug) printf_P(PSTR("ld r%d, -Y (0x%04x)\n"), Rd, *Y);
         p->r[Rd] = processor_read(p, *Y);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
+
+    // // Instruction: LDD Rd, Y + q
+    // // Encoding: 10q0 qq0d dddd 1qqq
+    // if ((instruction & 0b1101001000001000) == 0b1000000000001000) {
+    //     uint8_t Rd = (instruction >> 4) & 0b11111;
+    //     uint8_t q = (bit(instruction, 13) << 5) | (bit(instruction, 11) << 4) | (bit(instruction, 10) << 3) | (instruction & 0b111);
+    //     #ifdef DEBUG
+    //         printf("Execute: ldD Rd, Y + q");
+    //     #endif
+    //     uint16_t Y = processor->registers[28] | (processor->registers[29] << 8);
+    //     processor->registers[Rd] = processor_memory_read(processor, Y + q);
+    //     return;
+    // }
 
     // ld Rd, Z | 1000 000d dddd 0000
     if ((i & 0b1111111000001111) == 0b1000000000000000) {
         if (p->debug) printf_P(PSTR("ld r%d, Z (0x%04x)\n"), Rd, *Z);
         p->r[Rd] = processor_read(p, *Z);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // ld Rd, Z+ | 1001 000d dddd 0001
@@ -464,7 +485,7 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("ld r%d, Z+ (0x%04x)\n"), Rd, *Z);
         p->r[Rd] = processor_read(p, *Z);
         (*Z)++;
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // ld Rd, -Z | 1001 000d dddd 0010
@@ -472,14 +493,31 @@ void processor_clock(Processor *p) {
         (*Z)--;
         if (p->debug) printf_P(PSTR("ld r%d, -Z (0x%04x)\n"), Rd, *Z);
         p->r[Rd] = processor_read(p, *Z);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
+
+    // // Instruction: LDD Rd, Z + q
+    // // Encoding: 10q0 qq0d dddd 0qqq
+    // if ((instruction & 0b1101001000001000) == 0b1000000000000000) {
+    //     uint8_t Rd = (instruction >> 4) & 0b11111;
+    //     uint8_t q = (bit(instruction, 13) << 5) | (bit(instruction, 11) << 4) | (bit(instruction, 10) << 3) | (instruction & 0b111);
+    //     #ifdef DEBUG
+    //         printf("Execute: ldD Rd, Z + q");
+    //     #endif
+    //     uint16_t Z = processor->registers[30] | (processor->registers[31] << 8);
+    //     processor->registers[Rd] = processor_memory_read(processor, Z + q);
+    //     return;
+    // }
+
+    // Instruction: LDS Rd, k
+    // Encoding: 1001 000d dddd 0000
+    // Encoding: kkkk kkkk kkkk kkkk
 
     // st X, Rd | 1001 001d dddd 1100
     if ((i & 0b1111111000001111) == 0b1001001000001100) {
         if (p->debug) printf_P(PSTR("st X (0x%04x), r%d (0x%02x)\n"), *X, Rd, p->r[Rd]);
         processor_write(p, *X, p->r[Rd]);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // st X+, Rd | 1001 001d dddd 1101
@@ -487,7 +525,7 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("st X+ (0x%04x), r%d (0x%02x)\n"), *X, Rd, p->r[Rd]);
         processor_write(p, *X, p->r[Rd]);
         (*X)++;
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // st -X, Rd | 1001 001d dddd 1110
@@ -495,14 +533,14 @@ void processor_clock(Processor *p) {
         (*X)--;
         if (p->debug) printf_P(PSTR("st -X (0x%04x), r%d (0x%02x)\n"), *X, Rd, p->r[Rd]);
         processor_write(p, *X, p->r[Rd]);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // st Y, Rd | 1000 001d dddd 1000
     if ((i & 0b1111111000001111) == 0b1000001000001000) {
         if (p->debug) printf_P(PSTR("st Y (0x%04x), r%d (0x%02x)\n"), *Y, Rd, p->r[Rd]);
         processor_write(p, *Y, p->r[Rd]);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // st Y+, Rd | 1001 001d dddd 1001
@@ -510,7 +548,7 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("st Y+ (0x%04x), r%d (0x%02x)\n"), *Y, Rd, p->r[Rd]);
         processor_write(p, *Y, p->r[Rd]);
         (*Y)++;
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // st -Y, Rd | 1001 001d dddd 1010
@@ -518,14 +556,27 @@ void processor_clock(Processor *p) {
         (*Y)--;
         if (p->debug) printf_P(PSTR("st -Y (0x%04x), r%d (0x%02x)\n"), *Y, Rd, p->r[Rd]);
         processor_write(p, *Y, p->r[Rd]);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
+
+    // // Instruction: STD Y + q, Rr
+    // // Encoding: 10q0 qq1r rrrr 1qqq
+    // if ((instruction & 0b1101001000001000) == 0b1000001000001000) {
+    //     uint8_t Rr = (instruction >> 4) & 0b11111;
+    //     uint8_t q = (bit(instruction, 13) << 5) | (bit(instruction, 11) << 4) | (bit(instruction, 10) << 3) | (instruction & 0b111);
+    //     #ifdef DEBUG
+    //         printf("Execute: stD Y + 0x%02x, r%d\n", q, Rr);
+    //     #endif
+    //     uint16_t Y = processor->registers[28] | (processor->registers[29] << 8);
+    //     processor_memory_write(processor, Y + q, processor->registers[Rr]);
+    //     return;
+    // }
 
     // st Z, Rd | 1000 001d dddd 0000
     if ((i & 0b1111111000001111) == 0b1000001000000000) {
         if (p->debug) printf_P(PSTR("st Z (0x%04x), r%d (0x%02x)\n"), *Z, Rd, p->r[Rd]);
         processor_write(p, *Z, p->r[Rd]);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // st Z+, Rd | 1001 001d dddd 0001
@@ -533,7 +584,7 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("st Z+ (0x%04x), r%d (0x%02x)\n"), *Z, Rd, p->r[Rd]);
         processor_write(p, *Z, p->r[Rd]);
         (*Z)++;
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // st -Z, Rd | 1001 001d dddd 0010
@@ -541,21 +592,38 @@ void processor_clock(Processor *p) {
         (*Z)--;
         if (p->debug) printf_P(PSTR("st -Z (0x%04x), r%d (0x%02x)\n"), *Z, Rd, p->r[Rd]);
         processor_write(p, *Z, p->r[Rd]);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
+
+    // // Instruction: STD Z + q, Rr
+    // // Encoding: 10q0 qq1r rrrr 0qqq
+    // if ((instruction & 0b1101001000001000) == 0b1000001000000000) {
+    //     uint8_t Rr = (instruction >> 4) & 0b11111;
+    //     uint8_t q = (bit(instruction, 13) << 5) | (bit(instruction, 11) << 4) | (bit(instruction, 10) << 3) | (instruction & 0b111);
+    //     #ifdef DEBUG
+    //         printf("Execute: stD Z + 0x%02x, r%d\n", q, Rr);
+    //     #endif
+    //     uint16_t Z = processor->registers[28] | (processor->registers[29] << 8);
+    //     processor_memory_write(processor, Z + q, processor->registers[Rr]);
+    //     return;
+    // }
+
+    // Instruction: STS k, Rr
+    // Encoding: 1001 001d dddd 0000
+    // Encoding: kkkk kkkk kkkk kkkk
 
     // lpm r0, Z | 1001 0101 1100 1000
     if (i == 0b1001010111001000) {
         if (p->debug) printf_P(PSTR("lpm Z (0x%04x)\n"), *Z);
         p->r[0] = eeprom_read_byte(p->pgm_address + *Z);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // lpm Rd, Z | 1001 000d dddd 0100
     if ((i & 0b1111111000001111) == 0b1001000000000100) {
         if (p->debug) printf_P(PSTR("lpm r%d, Z (0x%04x)\n"), Rd, *Z);
         p->r[Rd] = eeprom_read_byte(p->pgm_address + *Z);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // lpm Rd, Z+ | 1001 000d dddd 0101
@@ -563,35 +631,35 @@ void processor_clock(Processor *p) {
         if (p->debug) printf_P(PSTR("lpm r%d, Z+ (0x%04x)\n"), Rd, *Z);
         p->r[Rd] = eeprom_read_byte(p->pgm_address + *Z);
         (*Z)++;
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // in Rd, A | 1011 0AAd dddd AAAA
     if ((i & 0b1111100000000000) == 0b1011000000000000) {
         if (p->debug) printf_P(PSTR("in r%d, 0x%02x\n"), Rd, A);
         p->r[Rd] = processor_read(p, 0x20 + A);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // out A, Rr | 1011 1AAd dddd AAAA
     if ((i & 0b1111100000000000) == 0b1011100000000000) {
         if (p->debug) printf_P(PSTR("out 0x%02x, r%d (0x%02x)\n"), A, Rd, p->r[Rd]);
         processor_write(p, 0x20 + A, p->r[Rd]);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // push Rd | 1001 001d dddd 1111
     if ((i & 0b1111111000001111) == 0b1001001000001111) {
         if (p->debug) printf_P(PSTR("push r%d (0x%02x)\n"), Rd, p->r[Rd]);
         processor_write(p, p->sp--, p->r[Rd]);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // pop Rd | 1001 000d dddd 1111
     if ((i & 0b1111111000001111) == 0b1001000000001111) {
         if (p->debug) printf_P(PSTR("pop r%d\n"), Rd);
         p->r[Rd] = processor_read(p, ++p->sp);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // ###############################################################################
@@ -609,7 +677,7 @@ void processor_clock(Processor *p) {
             bit_clear(data, b);
         }
         processor_write(p, 0x20 + Al, data);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // lsr Rd | 1001 010d dddd 0110
@@ -620,7 +688,7 @@ void processor_clock(Processor *p) {
 
         p->sreg.flags.n = bit(p->r[Rd], 7);
         processor_flags(p, p->r[Rd], false, p->sreg.flags.n != p->sreg.flags.c);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // ror Rd | 1001 010d dddd 0111
@@ -633,7 +701,7 @@ void processor_clock(Processor *p) {
 
         p->sreg.flags.n = bit(p->r[Rd], 7);
         processor_flags(p, p->r[Rd], false, p->sreg.flags.n != p->sreg.flags.c);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // asr Rd | 1001 010d dddd 0101
@@ -646,14 +714,14 @@ void processor_clock(Processor *p) {
 
         p->sreg.flags.n = bit(p->r[Rd], 7);
         processor_flags(p, p->r[Rd], false, p->sreg.flags.n != p->sreg.flags.c);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // swap Rd | 1001 010d dddd 0010
     if ((i & 0b1111111000001111) == 0b1001010000000010) {
         if (p->debug) printf_P(PSTR("Execute: swap r%d (0x%02x)\n"), Rd, p->r[Rd]);
         p->r[Rd] = ((p->r[Rd] & 0b1111) << 4) | (p->r[Rd] >> 4);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // bset s | bclr s | 1001 0100 xsss 1000
@@ -665,14 +733,14 @@ void processor_clock(Processor *p) {
         } else {
             bit_clear(p->sreg.data, s);
         }
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // bst Rd, b | 1111 101d dddd 0bbb
     if ((i & 0b1111111000001000) == 0b1111101000000000) {
         if (p->debug) printf_P(PSTR("bst r%d, %d\n"), Rd, b);
         p->sreg.flags.t = bit(p->r[Rd], b);
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // bld Rd, b | 1111 100d dddd 0bbb
@@ -683,16 +751,17 @@ void processor_clock(Processor *p) {
         } else {
             bit_clear(p->r[Rd], b);
         }
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     // nop | sleep | wdr | break | spm
     // 0000 0000 0000 0000 | 1001 0101 1000 1000 | 1001 0101 1010 1000 | 1001 0101 1001 1000 | 1001 0101 1110 1000
     if (i == 0b0000000000000000 || i == 0b1001010110001000 || i == 0b1001010110101000 || i == 0b1001010110011000|| i == 0b1001010111101000) {
         printf_P(PSTR("nop\n"));
-        return;
+        return PROCESSOR_STATE_NORMAL;
     }
 
     printf_P(PSTR("Unkown instruction!\n"));
     p->running = false;
+    return PROCESSOR_STATE_UNKOWN_INSTRUCTION;
 }

@@ -14,7 +14,7 @@
 #include "file.h"
 #include "stack.h"
 #include "heap.h"
-#include "processor.h"
+#include "processes.h"
 
 const PROGMEM char random_command_name[] = "random";
 const PROGMEM char rand_command_name[] = "rand";
@@ -57,6 +57,14 @@ const PROGMEM char heap_command_name[] = "heap";
 const PROGMEM char run_command_name[] = "run";
 const PROGMEM char start_command_name[] = "start";
 const PROGMEM char debug_command_name[] = "debug";
+const PROGMEM char sleep_command_name[] = "sleep";
+const PROGMEM char wake_command_name[] = "wake";
+const PROGMEM char wait_command_name[] = "wait";
+const PROGMEM char stop_command_name[] = "stop";
+const PROGMEM char kill_command_name[] = "kill";
+const PROGMEM char niceness_command_name[] = "niceness";
+const PROGMEM char nice_command_name[] = "nice";
+const PROGMEM char ps_command_name[] = "ps";
 
 const Command commands[] PROGMEM = {
     { random_command_name, &random_command }, { rand_command_name, &random_command },
@@ -86,7 +94,13 @@ const Command commands[] PROGMEM = {
     { heap_command_name, &heap_command },
 
     { run_command_name, &run_command }, { start_command_name, &run_command },
-    { debug_command_name, &debug_command }
+    { debug_command_name, &debug_command },
+    { sleep_command_name, &sleep_command },
+    { wake_command_name, &wake_command },
+    { wait_command_name, &wait_command },
+    { stop_command_name, &stop_command }, { kill_command_name, &stop_command },
+    { niceness_command_name, &niceness_command }, { nice_command_name, &niceness_command },
+    { ps_command_name, &process_list_command }
 };
 
 // Util commands
@@ -656,47 +670,123 @@ void heap_command(uint8_t argc, char **argv) {
 // Processor commands
 void run_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
-        int8_t file = file_open(argv[1], FILE_OPEN_MODE_READ);
-        if (file != -1) {
-            Processor processor;
-            processor_init(&processor, false, files[file].address + 1 + files[file].name_size + 2); // DIRTY
-
-            for (uint32_t i = 0; processor.running; i++) {
-                processor_clock(&processor);
+        int8_t process = process_open(argv[1], false);
+        if (process != -1) {
+            if (argc >= 3 && !strcmp_P(argv[2], PSTR("&"))) {
+                return;
             }
-
-            file_close(file);
+            process_wait(process);
         } else {
-            serial_println_P(PSTR("File open error!"));
+            serial_println_P(PSTR("Process open error!"));
         }
     } else {
-        serial_println_P(PSTR("Help: run [name]"));
+        serial_println_P(PSTR("Help: run [name] &?"));
     }
 }
 
 void debug_command(uint8_t argc, char **argv) {
     if (argc >= 2) {
-        int8_t file = file_open(argv[1], FILE_OPEN_MODE_READ);
-        if (file != -1) {
-            Processor processor;
-            processor_init(&processor, true, files[file].address + 1 + files[file].name_size + 2); // DIRTY
-
-            uint32_t steps = argc >= 3 ? strtol(argv[2], NULL, 10) : 0;
-            for (uint32_t i = 0; processor.running; i++) {
-                processor_clock(&processor);
-                if (i >= steps) {
-                    #ifndef ARDUINO
-                        serial_read_input();
-                    #endif
-                    while (serial_read() == '\0');
-                }
+        int8_t process = process_open(argv[1], true);
+        if (process != -1) {
+            if (argc >= 3 && !strcmp_P(argv[2], PSTR("&"))) {
+                return;
             }
-
-            file_close(file);
+            process_wait(process);
         } else {
-            serial_println_P(PSTR("File open error!"));
+            serial_println_P(PSTR("Process open error!"));
         }
     } else {
-        serial_println_P(PSTR("Help: debug [name] [steps]?"));
+        serial_println_P(PSTR("Help: debug [name] &?"));
+    }
+}
+
+void sleep_command(uint8_t argc, char **argv) {
+    if (argc >= 2) {
+        for (uint8_t i = 1; i < argc; i++) {
+            if (!process_sleep(strtol(argv[i], NULL, 10))) {
+                serial_println_P(PSTR("Process sleep error!"));
+            }
+        }
+    } else {
+        serial_println_P(PSTR("Help: sleep [pid]..."));
+    }
+}
+
+void wake_command(uint8_t argc, char **argv) {
+    if (argc >= 2) {
+        for (uint8_t i = 1; i < argc; i++) {
+            if (!process_wake(strtol(argv[i], NULL, 10))) {
+                serial_println_P(PSTR("Process wake error!"));
+            }
+        }
+    } else {
+        serial_println_P(PSTR("Help: wake [pid]..."));
+    }
+}
+
+void wait_command(uint8_t argc, char **argv) {
+    if (argc >= 2) {
+        for (uint8_t i = 1; i < argc; i++) {
+            if (!process_wait(strtol(argv[i], NULL, 10))) {
+                serial_println_P(PSTR("Process wait error!"));
+            }
+        }
+    } else {
+        serial_println_P(PSTR("Help: wait [pid]..."));
+    }
+}
+
+void stop_command(uint8_t argc, char **argv) {
+    if (argc >= 2) {
+        for (uint8_t i = 1; i < argc; i++) {
+            if (!process_close(strtol(argv[i], NULL, 10))) {
+                serial_println_P(PSTR("Process stop error!"));
+            }
+        }
+    } else {
+        serial_println_P(PSTR("Help: stop [pid]..."));
+    }
+}
+
+void niceness_command(uint8_t argc, char **argv) {
+    if (argc >= 3) {
+        for (uint8_t i = 1; i < argc; i += 2) {
+            uint8_t niceness = strtol(argv[i + 1], NULL, 10);
+            if (!process_niceness(strtol(argv[i], NULL, 10), niceness)) {
+                serial_println_P(PSTR("Process niceness error!"));
+            }
+        }
+    } else {
+        serial_println_P(PSTR("Help: niceness [[pid] [niceness]]..."));
+    }
+}
+
+void process_list_command(uint8_t argc, char **argv) {
+    (void)argc;
+    (void)argv;
+    serial_println_P(PSTR("Processes:"));
+    bool empty = true;
+    for (uint8_t i = 0; i < PROCESSES_SIZE; i++) {
+        if (processes[i].niceness != 0) {
+            empty = false;
+            serial_print_P(PSTR("- "));
+            serial_print_number(i, '\0');
+            serial_print_P(PSTR(": "));
+            serial_print_number(processes[i].niceness, '\0');
+            serial_print_P(PSTR(" niceness "));
+            if (processes[i].state == PROCESS_STATE_RUNNING) {
+                serial_print_P(PSTR("running"));
+            }
+            if (processes[i].state == PROCESS_STATE_SLEEPING) {
+                serial_print_P(PSTR("sleeping"));
+            }
+            if (processes[i].processor.debug) {
+                serial_print_P(PSTR(" [DEBUG]"));
+            }
+            serial_write('\n');
+        }
+    }
+    if (empty) {
+        serial_println_P(PSTR("- No processes active"));
     }
 }

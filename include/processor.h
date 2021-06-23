@@ -48,6 +48,14 @@ void processor_sub_with_carry(Processor *p, uint8_t a, uint8_t b, bool carry_in,
 
 void processor_sub_with_half_carry(Processor *p, uint8_t a, uint8_t b, bool carry_in, uint8_t *c, bool zero_carry);
 
-void processor_clock(Processor *p);
+typedef enum ProcessorState {
+    PROCESSOR_STATE_NORMAL = 0,
+    PROCESSOR_STATE_CALL,
+    PROCESSOR_STATE_RETURN,
+    PROCESSOR_STATE_HALTED,
+    PROCESSOR_STATE_UNKOWN_INSTRUCTION
+} ProcessorState;
+
+ProcessorState processor_clock(Processor *p);
 
 #endif
